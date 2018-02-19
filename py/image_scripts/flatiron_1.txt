@@ -1,0 +1,19 @@
+"""
+PYTHONPATH=$PYTHONPATH:"/mnt/ebs0/imagediver/py"
+export PYTHONPATH
+cd /mnt/ebs0/imagediver/py
+
+python image_scripts/more_images.py
+
+"""
+
+
+
+http://www.loc.gov/pictures/resource/det.4a09478/?co=det
+
+cd /mnt/ebs1/imagediver/image/cg
+
+wget http://lcweb2.loc.gov/master/pnp/det/4a00000/4a09000/4a09400/4a09478u.tif -O flatiron_.tif
+cd /mnt/ebs0/imagediver/py
+python image_scripts/add_image_to_db.py cg flatiron_1.tif
+python image_scripts/build_tiling.py cg flatiron_1

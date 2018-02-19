@@ -1,0 +1,49 @@
+
+deal with html in caption, descriptions
+
+if image is too wide in selected snap area, deal with that
+
+john lee hooker p vine
+
+sprinkle preventdefaults atound
+
+fix zoom out when panned
+
+
+be sure to create directories /var/www/imagediver.com/snap/fullsize/<imagename> and snap/thumb/<imagename> for new images
+
+hand cursor over prev/next
+
+crop snap selection area to image
+
+clear cache, zoom rapidly, get black which loads on pan
+
+selected snap panel borked if no snaps
+
+put        e.preventDefault(); all over the place
+
+put in the right cursors
+
+done get fuzzier imagery all the way up to the top
+
+make zoomto set the zoomSlider
+
+polite messages for non existent pages, not "SERVER FAILURE"
+
+resize after closing snap editor
+
+on chrome sometimes scroll bars appear in changing selecte image
+turn off scroll bars?
+
+
+disallow weird characters
+
+change messge to "updating snapshot" when that is what is happening
+
+when editing a snap, don't start in redefine image area mode
+
+when editing a snap, and drag goes outside image, freezes
+
+check that captions for snaps are super short (eg short entry spot)
+
+for big snaps: "image loading"

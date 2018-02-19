@@ -1,0 +1,22 @@
+ cd /mnt/ebs0/imagediverdev/snapThumb/cg/The_Dutch_Proverbs
+ mv ../../../snap/thumb/cg/The_Dutch_Proverbs/* .
+ 
+
+
+cd /mnt/ebs0/imagediverdev/www/snapThumb/cg/earthly_delights_1
+mv /mnt/ebs1/imagediver/snap/thumb/cg/earthly_delights_1/* .
+ 
+ cd /mnt/ebs0/imagediverdev/www/snapThumb/cg/earthly_delights_1
+mv /mnt/ebs0/imagediverdev/snapThumb/cg/earthly_delights_1/* .
+
+
+cd /mnt/ebs0/imagediverdev/www/snapThumb/cg/astoria_1923_1
+cp /mnt/ebs1/imagediver/snap/thumb/cg/astoria_1923_1/* .
+
+
+
+cd /mnt/ebs0/imagediverdev/www/snapThumb/cg/bathing_1
+cp /mnt/ebs1/imagediver/snap/thumb/cg/bathing_1/* .
+
+
+ls /mnt/ebs0/imagediver/snap/thumb/cg/astoria_1923_1/* .

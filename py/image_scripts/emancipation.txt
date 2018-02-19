@@ -1,0 +1,18 @@
+"""
+PYTHONPATH=$PYTHONPATH:"/mnt/ebs0/imagediverdev/py"
+export PYTHONPATH
+cd /mnt/ebs0/imagediver/py
+
+python image_scripts/more_images.py
+
+"""
+
+
+
+http://www.loc.gov/pictures/resource/det.4a09478/?co=det
+
+cd /mnt/ebs1/imagediver/image/cg
+
+cd /mnt/ebs0/imagediverdev/py
+python image_scripts/add_image_to_db.py cg bellvue_towers_1.tif
+python image_scripts/build_tiling.py cg bellvue_towers_1

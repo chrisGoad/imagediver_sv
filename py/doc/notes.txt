@@ -1,0 +1,26 @@
+
+OBSOLETE see version directly under imagediver
+
+convert -quiet -size 25330x4115 -depth 8 -extract 3329x1628+3926+2220 -resize 408x200 /mnt/ebs0/projects/panorama/P1923_3.TIF /var/www/imagediver.com/snap/fullsize/astoria_1923_0/s60.jpg
+
+6.67 seconds on small box
+
+
+convert -quiet -size 25330x4115 -depth 8 -extract 3329x1628+3926+2220 -resize 1632x800 /mnt/ebs0/projects/panorama/P1923_3.TIF /var/www/imagediver.com/snap/fullsize/astoria_1923_0/s60.jpg
+
+ls -l /var/www/imagediver.com/snap/fullsize/astoria_1923_0/s60.jpg
+
+
+date
+convert -quiet -size 25330x4115 -depth 8 -extract 11000x2460+4288+772 -resize 894x200 /mnt/ebs0/projects/panorama/P1923_3.TIF /var/www/imagediver.com/snap/fullsize/astoria_1923_0/s60.jpg
+date
+
+
+http://dev.imagediver.org/topic/album/cg/The_Dutch_Proverbs/1?nocloak=1
+
+http://imagediver.s3-website-us-east-1.amazonaws.com/index.html
+
+cd /mnt/ebs0/imagediverdev/www/album/cg/The_Dutch_Proverbs/1
+
+ln -s  /mnt/ebs0/imagediverdev/static/topic/album/cg/The_Dutch_Proverbs/1/topic.json topic.json
+

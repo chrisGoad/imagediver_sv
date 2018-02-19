@@ -1,0 +1,19 @@
+"""
+PYTHONPATH=$PYTHONPATH:"/mnt/ebs0/imagediver/py"
+export PYTHONPATH
+cd /mnt/ebs0/imagediver/py
+
+python image_scripts/more_images.py
+
+"""
+
+
+
+http://www.loc.gov/pictures/resource/det.4a09478/?co=det
+
+cd /mnt/ebs1/imagediver/image/cg
+
+wget http://lcweb2.loc.gov/master/pnp/det/4a20000/4a25000/4a25600/4a25680a.tif  -O bathing_1.tif
+cd /mnt/ebs0/imagediverdev/py
+python image_scripts/add_image_to_db.py cg bathing_1.tif
+python image_scripts/build_tiling.py cg bathing_1
