@@ -1,7 +1,8 @@
 (function () {
   var lib = page;
-  var geom = exports.GEOM2D;
-  var imlib = exports.IMAGE;
+    var geom = idv.geom;
+  var imlib = idv.image;
+
   var com = idv.common;
   var util  = idv.util;
   
@@ -23,17 +24,30 @@
     return text;
     
   }
+  
+  /*
+   function allMatches(txt,re) {
     
+   }
+  re = /(?:\*\*[^\n]*?\*\*)/g
+  txt = "012345**def**  **ff** foob"
+  mt = txt.match(re)
+  */
+  
   lib.processWikiText = function (dst,txt) {
     var ctxt = txt;
     var rs = [];
     if (!txt) return rs;
+    var link_re = /(?:\[\[[^\]]*)\]\]|(?:\[[^\]]*\])/;
+    var bold_re = /(?:\*\*[^\n]*?\*\*)/;
+    
     function findNext() {
       //var re = /(?:\[\[([^\]]*)\]\])|(?:\[([^\]]*)\])/g;
       var re = /(?:\[\[[^\]]*)\]\]|(?:\[[^\]]*\])/g;
       var mt = re.exec(ctxt);
       if (!mt) {
-        rs.push(ctxt);
+        var
+        rs.push(["text",ctxt]);
         return false;
       }
       var mt0 = mt[0]

@@ -1,8 +1,8 @@
 
 (function () {
   var lib = page;
-  var geom = exports.GEOM2D;
-  var imlib = exports.IMAGE;
+  var geom = idv.geom;
+  var imlib = idv.image;
   var com = idv.common;
   var util  = idv.util;
 
@@ -18,11 +18,13 @@
       setTimeout(function () {lib.interpolateCoverage(startCov,destCov,v+0.1);},50);
     } else {
       page.zooming = false;
+      //lib.vp.setDisplayParamsForZoom();
+      lib.vp.refreshOverlays();
       lib.zSlider.setZoom(lib.zSlider.getZoom()); // set the depth and grab tiles
     }
   }
   
-  lib.zoomToSnap = function (snapD,scale) {
+  lib.immediateZoomToSnap = function (snapD,scale) {
     if (!scale) scale = 1.1;
     var cov = snapD.coverage;
     var scov = cov.scale(scale);

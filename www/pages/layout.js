@@ -20,8 +20,8 @@ var page = {};
   
   
   var lib = page;
-  var geom = exports.GEOM2D;
-  var imlib = exports.IMAGE;
+  var geom = idv.geom;
+  var imlib = idv.image;
   var com = idv.common;
   var util  = idv.util;
 
@@ -40,10 +40,14 @@ var page = {};
 
   // used for the gallery page
   lib.LayoutZero = function (options) {
+    util.setProperties(this,options,["outerDiv","margin","centerDiv","minScale","maxScale","tabDiv","includeLightbox"]);
+    return;
+  
     this.outerDiv = options.outerDiv;
     this.margin = options.margin;
   //  this.topDiv = options.topDiv;
     this.centerDiv = options.centerDiv;
+    
     /*this.bottomDiv = options.bottomDiv;
     this.panelDiv = options.panelDiv;
     this.topDivHt = options.topDivHt;
@@ -51,6 +55,7 @@ var page = {};
     this.minScale = options.minScale;
     this.maxScale = options.maxScale;
     this.aspectRatio = options.aspectRatio;
+    this.includeLightbox = options.includeLightbox;
   }
   
   
@@ -68,6 +73,7 @@ var page = {};
     }
     lib.scale = this.scale;
     idv.util.log("scale",this.maxScale,this.scale);
+
     
   }
   
@@ -84,9 +90,11 @@ var page = {};
     var cTop = 10; // top padding
     var topDiv = this.topDiv;
     lib.setCss(this.outerDiv,{left:left,width:divWd});
+    lib.setCss(this.tabDiv,{width:divWd});//"background-color":"red"});
 
     lib.setCss(this.centerDiv,{width:divWd});
     this.vpCss = {width:divWd,height:vpHt};
+    this.placeLightbox();
 
 
     var afp = this.afterPlacement;
@@ -98,18 +106,38 @@ var page = {};
   // for image, album pages, with panel below
 
   lib.setTopDivCss = function (layout) {
-    layout.css.titleDiv = {"margin-top":"30px","margin-bottom":"20px","font-size":"10pt","font-style":"bold"};
+    layout.css.titleDiv = {"margin-top":"10px","margin-bottom":"20px","font-size":"10pt","font-style":"bold"};
+    if (idv.homePage) {
+      var ttdv = layout.css.titleDiv;
+      ttdv["text-align"] = "justify";
+      ttdv["margin-left"] = "40px";
+       ttdv["margin-right"] = "40px";
+
+   }
    // layout.css.topDiv = {"margin-top":"0px","margin-bottom":"30px","font-size":"10pt","font-style":"bold"};
-    layout.css.titleDiv = {"font-size":"10pt","font-style":"bold"};
-    var tdHt = idv.embed?"20px":"35px";
-    layout.css.topDiv = {"margin-top":"0px",padding:"0px","margin-bottom":"10px",height:tdHt,"font-size":"10pt","font-style":"bold"};
+    //layout.css.titleDiv = {"font-size":"10pt","font-style":"bold"};
+    var tdHt = idv.embed?"20px":(idv.homePage?"90px":"55px"); //!todo ?
+    //layout.css.topDiv = {"margin-top":"0px",padding:"0px","margin-bottom":"10px",height:tdHt,"font-size":"10pt","font-style":"bold"};
+    layout.css.topDiv = {"margin-top":"0px",padding:"0px","margin-bottom":"10px","font-size":"10pt","font-style":"bold"};
     layout.css.logo = {"font-size":"12pt"};
     layout.css.topDivTop = {"height":"20px"};
   }
   
+  
+  /*
   lib.applyTopDivCss = function (layout) {
+    
     if (!idv.embed) lib.setCss(imlib.titleDiv,layout.css.titleDiv);
     lib.setCss(imlib.topDiv,layout.css.topDiv);
+    lib.setCss($(".logo"),layout.css.logo);
+    lib.setCss($(".topDivTop"),layout.css.topDivTop);
+  }
+  */
+  
+  lib.applyTopDivCss = function (layout) {
+    
+    if (!idv.embed) lib.setCss($('.titleDiv'),layout.css.titleDiv);
+    lib.setCss($('.topDiv'),layout.css.topDiv);
     lib.setCss($(".logo"),layout.css.logo);
     lib.setCss($(".topDivTop"),layout.css.topDivTop);
   }
@@ -125,6 +153,8 @@ var page = {};
     this.scaleToViewport = options.scaleToViewport;
     this.includeLightbox = options.includeLightbox;
     this.css = {}
+    this.css.shareDiv = {"border":"solid thin white","margin-top":"10px","padding-top":"10px"};
+    this.css.embedDiv = {"border":"solid  white","margin":"10px","background-color":"white","color":"black"};
     lib.setTopDivCss(this);
 
   }
@@ -165,7 +195,7 @@ var page = {};
     if (this.includeLightbox) {
       var lb = this.lightbox;
       var top = 50;
-      var lbwd = 500;
+      var lbwd = 600;
       var lft = winCenter = 0.5 * lbwd;
       var wht = $(window).height();
       var lbht = wht - 100; 
@@ -177,6 +207,10 @@ var page = {};
       }
     }
   }
+  
+   lib.LayoutZero.prototype.placeLightbox = lib.LayoutOne.prototype.placeLightbox;
+   
+   
   lib.LayoutOne.prototype.placeDivs = function () {
     this.computeScale();
     var ww = $(window).width();
@@ -281,7 +315,7 @@ var page = {};
     lib.setTopDivCss(this);
 
     this.css.shareDiv = {"border":"solid thin white","margin-top":"10px","padding-top":"10px"};
-    this.css.embedDiv = {"border":"solid  white","margin":"10px","background-color":"white","color":"black"};
+    this.css.embedDiv = {"border":"solid  black","padding":"10px","margin":"10px","background-color":"white","color":"black"};
     this.includeLightbox = options.includeLightbox;
 
 

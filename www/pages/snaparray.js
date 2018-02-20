@@ -1,10 +1,11 @@
 (function () {
   
   var lib = page;
-  var geom = exports.GEOM2D;
-  var imlib = exports.IMAGE;
+  var geom = idv.geom;
+  var imlib = idv.image;
   var com = idv.common;
   var util  = idv.util;
+
 
 
     lib.snapArrayDiv = $(
@@ -15,56 +16,35 @@
       '</div'
     );
     
-   
-    //lib.captionDiv = $('<div class="caption"></div>');
-    /*
-     
-    lib.setSnapsMessage = function () {
-      var  za = $('#zoomAdvice');
-      if (lib.vp.zoom == 1) {
-        var msg = "";
-      } else {
-        msg = "Above snaps include only those visible in the right window";
-      }
-      za.html(msg);
-    }
-    
-    */
-    /*
-    lib.setSnapsMessage = function () {
-      var  za = $('#zoomAdvice');
-      if (lib.vp.zoom == 1) {
-        var msg = "all snaps";
-      } else {
-        msg = "snaps in view";
-      }
-     // util.slog(msg);
-      lib.snapArrayButton.html(msg);
-    }
-    
-    */
     
     lib.checkNoSnaps = function () {
         if (lib.snaps.length == 0) {
         $('#snapArrayNoSnaps').show();
+        $('#snapArrayIntro').hide();
       } else {
         $('#snapArrayNoSnaps').hide();
-        lib.positionSnaps(undefined,false,true);
+         $('#snapArrayIntro').show();
+       lib.positionSnaps(undefined,false,true);
       }
     }
     
     lib.snapArrayDiv.data("initializer",function () {
-      lib.checkNoSnaps();
+      //lib.checkNoSnaps();
+       $('#snapArrayNoSnaps').hide();
+        $('#snapArrayIntro').hide();
+
       if (lib.selectedSnaps.length < 2) { // that is unless we are in a multiple snap click-selected situation
         lib.setSelectedSnap(undefined,lib.showSnapsMode?lib.stdSnapAdvice():" ");
       }
+      lib.positionSnaps(undefined,false,true);
+
     });
    
 
-
+  lib.minAspectRatio = 0.82;
   lib.snapArrayThumbWidth = function (snapD) {
     var xt = snapD.coverage.extent;
-    var aspectRatio =  xt.y/xt.x;
+    var aspectRatio =  Math.max(lib.minAspectRatio,xt.y/xt.x);
     var snapH = lib.snapThumbHeight;
     return snapH/aspectRatio;
   }
@@ -81,14 +61,17 @@
   
   lib.fixSnapCoverage = function (snapD) {
     var sc = snapD.shares_coverage;
-    if (sc != undefined) {
+    //var sc = snapD.cropid;
+    if (sc >  0) {
       var sw = lib.snapDsByTopicNum[sc];
-      return snapD.coverage = sw.coverage;
+      snapD.coverage = sw.coverage;
+      snapD.cropid = sw.cropid;
     }
   }
   
-  lib.snapWidth = function (snapD) {
-    var xt = snapD.coverage.extent;
+  idv.SnapD.prototype.width = function () {
+  //lib.snapWidth = function (snapD) {
+    var xt = this.coverage.extent;
     var aspectRatio =  xt.y/xt.x;
     var snapH = lib.snapHeight;
     return snapH/aspectRatio;
@@ -96,17 +79,28 @@
     
   
     // useThisCapHeight if present has been computed by a previous iteration; if non zero it is the scaled height to use
-  lib.setThumbCss = function (snap,left,top,sc,useThisCapHeight) {
+    // tooWideScale is defined if the snap doesn't fit in the panel, and must be scaled down
+    
+    // returns [<capHt>,<snapHt>]
+   // left,top are unscaled
+  
+  idv.Snap.prototype.setThumbCss = function (left,top,sc,useThisCapHeight) {
+  //lib.setThumbCss = function (snap,left,top,sc,useThisCapHeight) {
+    var snap = this;
     //useThisCapHeight = useThisCapHeight; // leave some space
-    sc = Math.max(sc,lib.minSnapScale);
+    if (useThisCapHeight) {
+      //debugger;
+    }
+   sc = Math.max(sc,lib.minSnapScale);
     var snapH = lib.snapThumbHeight;
     var snapBottomMargin = lib.snapThumbBottomMargin;
 
     var snapCapHeight = lib.snapThumbCaptionHeight;
     if (useThisCapHeight) {
+      var aaa = 22;
       snapCapHeight = useThisCapHeight/sc + 20; // 20 padding
     }
-    var snapW = lib.snapArrayThumbWidth(snap.snapD);
+      var snapW = lib.snapArrayThumbWidth(snap.snapD);
     var snapCW = lib.snapArrayThumbContainerWidth(snap.snapD);
     idv.util.log("snaparray","snapW",snapW,"snapCW",snapCW);
     var imleft = (snapCW - snapW)/2;
@@ -121,90 +115,63 @@
     //cap.css({left:0,top:0,width
     var snapD = snap.snapD;
     snapD.thumbCaptionEl.empty();
-    var wikitxt = lib.processWikiText(snapD.thumbCaptionEl,snapD.caption);
+    var cap = util.removeWikiSymbols(snapD.caption);
 
-    snapD.thumbCaptionEl.html(wikitxt);
     if (useThisCapHeight) {
-      var chta = useThisCapHeight + 20; // 20 padding;
+      var chta = useThisCapHeight;// + 20; // 20 padding;
     } else {
       var chta = sc*(snapCH - snapH); // available height for caption
     }
+    snapD.thumbCaptionEl.html(cap);
     var cht = snapD.thumbCaptionEl.height(); // actual height of caption
     if (cht < 10) cht = 10; // for the null caption case
     var cnt = 0;
-    var cap = wikitxt; // snapD.caption;
-    if (cap.indexOf("To carry fire")>=0) {
-      abc = 22;
-    }
-    //idv.util.slog("cht",cht,"chta",chta);
-    if (lib.shortCaptions) return cht;
-//    while ((cht+25 > chta) && (cnt <3)) { // caption won't fit; shorten it
+   
+    if (lib.shortCaptions) return [cht,snapH]
     while ((cht > chta) && (cnt <3)) { // caption won't fit; shorten it
-   // if (cht+10 > chta) { // caption won't fit; shorten it
       var cln = cap.length;
       var ratio = chta/(cht);// + 25);
       var nln = Math.max(Math.floor(cln*ratio)-3,1);
+     
+      
       var cap = cap.substr(0,nln);
       snapD.thumbCaptionEl.html(cap);
       cht = snapD.thumbCaptionEl.height(); // actual height of caption
       cnt++;
     }
     if (cnt>0) {
-      snapD.thumbCaptionEl.html(cap+"...");
+      snapD.thumbCaptionEl.html("<p>"+cap+"...</p>");
+    } else {
+      snapD.thumbCaptionEl.html("<p>"+cap+"</p>");
+      
     }
     return cht;
   }
   
   
-  lib.mouseenterSnap = function (snap) {
-    var snapD = snap.snapD;
-    // util.slog("SNAP",snapD.topic,snapD.coverage.corner.y);
+  idv.Snap.prototype.mouseenterSnap = function () {
+    var snapD = this.snapD;
     var cv = snapD.coverage;    
     var vp = lib.vp;
-    lib.setSelectedSnap(snap,lib.stdSnapAdvice());
-   /* if (lib.showSnapsMode) {
-      var dv = lib.vpSelectDiv;
-      dv.show();
-      vp.divToRect(cv,"image",dv);
-    } else {  
-      vp.drawRect(cv,"image",idv.selectedColor);
-    }
-   */
-    var cnt = snap.container;
+    lib.setSelectedSnap(this,lib.stdSnapAdvice());
+    var cnt = this.container;
     cnt.css({"background-color":"#dddddd"});
-   // cnt.css({"background-color":"transparent"});
 
-    var cap = snap.caption;
+    var cap = this.caption;
     cap.css({"color":"black"});
-    //var cp = lib.captionDiv;
-    //var caption = snap.snapD.caption;
-   // if (!caption) caption = "No caption";
-    //cp.html(caption);
   }
   
   
   
-  lib.mouseleaveSnap = function (snap) {
-    // this can be called when the panel is no longer up, causing trouble
-    
-/*
-    if (lib.showSnapsMode) {
-      var dv = lib.vpSelectDiv;
-      dv.hide(); // zuub
- 
-    } else {
-      lib.vp.clearOverlay("both");
-      lib.vp.drawOverlays("both");
-    }
-*/
+  idv.Snap.prototype.mouseleaveSnap = function () {
+    var snap = this;
     var cnt = snap.container;
     cnt.css({"background-color":"black"});
     var cap = snap.caption;
     cap.css({"color":"white"});
     if (page.currentPanel.name != "snapArray") return;
     lib.setSelectedSnap(undefined,lib.stdSnapAdvice());
-   // var cp = lib.captionDiv;
-   // cp.empty();
+
   }
   
   lib.minSnapScale = 0.4;
@@ -214,7 +181,7 @@
   lib.showAllSnaps = 1; //
   // if iShowAll is undefined use the global lib.showAllSnaps. Ow set the global. Position the snaps
   // if forced, or if the showAll status has changed
-  lib.positionSnaps = function (useThisCapHt,force,iShowAll) {
+  lib.positionSnaps = function (rowHeights,force,iShowAll) {
     if (iShowAll == undefined) {
       if (!force) return;
       var showAll = lib.showAllSnaps;
@@ -222,10 +189,9 @@
       lib.showAllSnaps = iShowAll;
       showAll = iShowAll;
     }
-   // util.slog("position snaps "+useThisCapHt,force,iShowAll);
+  
     if (lib.zooming) return;
-    var noCapHt = !useThisCapHt;
-    if (lib.custom) return;
+    var firstPass = !rowHeights;
     var minHt = lib.standardPanelHeight;
     var sc = lib.scale;
     if (lib.twoColumns) {
@@ -243,17 +209,20 @@
     var gapY = lib.snapGapY;
     var snapH = lib.snapThumbHeight;
     var snapCapH = lib.snapThumbCaptionHeight;
-    if (useThisCapHt) {
-      useThisCapHt = useThisCapHt+10;// leave some space
-      snapCapH = useThisCapHt/sc;
-    }
     var snapCapBottom = lib.snapThumbBottomMargin;
     var cx = gapX;
     var cy = gapY;
+    var cy = 40;
     var noSnaps = true;
-    
-    if (noCapHt) maxCapHt = 0; else maxCapHt = useThisCapHt;
     var ns = lib.snapsActive;
+    var lastSnapTooWide = false; // where a snap doesn't fit in the available width and must be scaled
+    if (firstPass) {
+      rowHeights = [];
+      maxCapHt = 0;
+      
+    }
+    // rows can have different heights due to different length captions; this is computed in the first pass and used in the second
+    var rowNum = 0;
     for (var i=0;i<ns;i++) {
       var cs = snaps[i];
       var snapD = cs.snapD;
@@ -267,16 +236,32 @@
       }
       var snapW = lib.snapArrayThumbContainerWidth(cs.snapD);//unscaled snapwidth
       nx = cx + snapW + gapX;
+      
       if (nx > eWd) { // the thumb does not fit in this row
+        rowNum++;
+        if (firstPass) {
+          rowHeights.push(Math.min(100,maxCapHt)); 
+          maxCapHt = 0;
+        } //else {
+          //snapCapH = (rowHeights[rowNum]+10)/sc; //leave some space
+        //  cy = cy + rowHeights[rowNum] + gapY + snapCapBottom+lib.snapThumbHeight + 30;
+        //}
+        cy = cy + lastThumbHt + gapY;//rowHeights[rowNum] + gapY + snapCapBottom+lib.snapThumbHeight + 30;
+
         cx = gapX;
         nx = cx + snapW + gapX;
-        cy = cy + snapH + snapCapH+ snapCapBottom+ gapY;
-      //  idv.util.log("snaparray","cy",cy);
       }
-      var cht = lib.setThumbCss(cs,cx,cy,sc,useThisCapHt);
+      if (firstPass) {
+        var cht = cs.setThumbCss(cx,cy,sc,undefined); // compute the height
+      } else {
+        cs.setThumbCss(cx,cy,sc,rowHeights[rowNum]);
+        
+      }
+      var lastThumbHt = cs.container.height()/sc;
       if (cht > maxCapHt) maxCapHt = cht;
       cx = nx;
     }
+    rowHeights.push(Math.min(50,maxCapHt)); 
     if (!lib.twoColumns) {
       var sht = cy + snapH + snapCapH+ snapCapBottom+ gapY+20;
       // var ht = Math.max(minHt,sht);
@@ -288,10 +273,9 @@
       lib.hideAllSelectedSnaps();
       return;
     } else {
-       $("#snapArrayIntro").html("");//Click on snapshot for detail")      
+       $("#snapArrayIntro").html("Click on snapshot for detail")      
     }
-    if (maxCapHt > 50) maxCapHt = 50;
-    if (noCapHt) lib.positionSnaps(maxCapHt,1);//another pass with actual caption heights
+    if (firstPass) lib.positionSnaps(rowHeights,1);//another pass with actual caption heights
    
   }
   
@@ -301,64 +285,85 @@
   
   lib.snaps = [];
   
-  lib.snapDthumb = function (snapD) {
-    var tp = snapD.topic;  // hs form /snap/<username>/<imagename/<snapid>
+  
+  idv.SnapD.prototype.imUrl = function(thumb){
+    var snapD = this;
+    var cv = snapD.coverage;
+    var xt = cv.extent;
+    var aratio = xt.y/xt.x;
+    /* since thumbs are produced at a uniform 100 width, very low aspect ratio */
+    var tp = snapD.topic; // hs form /snap/<username>/<imagename/<albumindex>/<snapid>
     var tps = tp.split("/");
-    var sc = snapD.shares_coverage;
+    var tpln = tps.length; 
+    var uname = tps[2];
+    var imname = tps[3];
+    var imowner = uname; 
+    
+    var sc = snapD.cropid;
     if (sc != undefined) {
       var snapNum = sc;
     } else {
-      snapNum = tps[4];
+      util.error("NO CROPID");
+      snapNum = tps[tpln-1];
     }
-    var uname = tps[2];
-    var bucket = "idv_"+uname;
-    if (idv.useS3) {
-      //var rs = "http://s3.amazonaws.com/idv/snapthumb/"+tps[2]+"/"+tps[3]+"/"+tps[4]+".jpg";
-      var rs = "http://"+bucket+".s3.amazonaws.com/snapthumb/"+tps[3]+"/"+snapNum+".jpg";
-      //var rs = "http://"+bucket+".s3.amazonaws.com/snapthumb/"+tps[3]+"/"+snapNum+".jpg";
-      //var rs = "http://imagediver.s3.amazonaws.com/snapthumb/"+tps[3]+"/"+snapNum+".jpg";
-      var rs = "http://"+idv.cfDomain+ "/snapthumb/"+tps[2]+"/"+tps[3]+"/"+snapNum+".jpg";
+    var cropId = snapD.cropid;
+    if (cropId == undefined) {
+      cropId = snapNum;
+    }
+    if (thumb) {
+      var rimd = "snapthumb/" + cropId + ".jpg";
+    } else {
+      var rimd = "snap/" + cropId + ".jpg";
+      
+    }
+    if (idv.atS3) {
+       var rs = util.s3imDir(imowner,imname) + rimd+"?album="+lib.albumString;
    } else {
-      var rs = "/snapthumb/"+tps[2]+"/"+tps[3]+"/"+snapNum+".jpg";
+      var rs = util.localImDir(imowner,imname) + rimd+"?album="+lib.albumString;
     }
    return rs;
+    
+  }
+  
+  idv.SnapD.prototype.thumb = function () {
+    return this.imUrl(true);
   }
   
   
-  lib.snapDfullsize = function (snapD) {
-   
-    var tp = snapD.topic; // hs form /snap/<username>/<imagename/<snapid>
-    var tps = tp.split("/");
-    var sc = snapD.shares_coverage;
-    if (sc != undefined) {
-      var snapNum = sc;
-    } else {
-      snapNum = tps[4];
-    }
-    //tilingUrl = "http://idv.amazonaws.com/tilings/"+uname+"/"+imname+"/";
-    //var rs = "/snap/fullsize/"+tps[2]+"/"+tps[3]+"/"+tps[4]+".jpg";
-    var uname = tps[2];
-    var bucket = "idv_"+uname;
-    if (idv.useS3) {
-      //var rs = "http://"+bucket+".s3.amazonaws.com/snap/"+tps[3]+"/"+snapNum+".jpg";
-      var rs = "http://"+idv.cfDomain+"/snap/"+tps[2]+"/"+tps[3]+"/"+snapNum+".jpg";
-    } else {
-      rs = "/snap/"+tps[2]+"/"+tps[3]+"/"+snapNum+".jpg";
-    }
-    return rs;
+  idv.SnapD.prototype.fullsize = function () {
+    return this.imUrl(false);
   }
+  
+  
   
   lib.showSnapsMode = false; // a global mode wherein snaps in the current view re shown
-  lib.snapDsByTopic = {};
-  lib.addSnap = function(snapD,editingSnap) {
+  //lib.snapDsByTopic = {};
+  lib.snapsByTopic = {};
+  
+  lib.displayTopicId = 0; //turn on for ordering snaps
+  
+  lib.showSnapByTopic = function (n) {
+    if (n==undefined) {
+      n = lib.urlSnap;
+    }
+    var snd = page.snapDsByTopicNum[n];
+    if (snd) {
+      lib.showSelectedSnap(snd);
+    }
+  }
+  lib.addSnap = function(isnapD,editingSnap) {
+    var snapD = lib.toSnapDObject(isnapD);
+    var topicId = util.lastPathElement(snapD.topic);
+    snapD.topicId = topicId; // a slight efficiency hack
+    
     if (editingSnap) { // updating this snap
      var dst = editingSnap;
-     util.setProperties(dst,snapD,["caption","description"]);
+     util.setProperties(dst,snapD,["caption","description","cropid"]);
     } else {
       dst = snapD;
     }
     dst.coverage = geom.internalizeRect(snapD.coverage);
-    var imsrc = lib.snapDthumb(snapD);
+    var imsrc = snapD.thumb();
       //var im= document.createElement('img');
     if (editingSnap) {
       var imjq = editingSnap.thumbImageEl;
@@ -366,20 +371,29 @@
       var thumbc = $("<div class='thumbc'/>");
       var caption = $("<div class='thumbCaption'></div>");
       snapD.thumbCaptionEl = caption;
-      thumbc.append(caption);
+      if (lib.displayTopicId) {
+        thumbc.append(topicId);
+      } else {
+       thumbc.append(caption);
+      }
       //caption.html(snapD.caption);
       var imjq = $("<img class='thumb' />");
       snapD.thumbImageEl = imjq;
       thumbc.append(imjq);
       lib.snapArraySnapsDiv.append(thumbc);
       thumbc.click(function (){lib.vp.setZoom(1);lib.showSelectedSnap(snapD)});
-      var esd = {snapD:snapD,container:thumbc,img:imjq,caption:caption};
-      thumbc.mouseenter(function (){lib.mouseenterSnap(esd)});
-      thumbc.mouseleave(function (){lib.mouseleaveSnap(esd);});
+      var esd = new idv.Snap();
+      util.setProperties(esd,{snapD:snapD,container:thumbc,img:imjq,caption:caption});
+      thumbc.mouseenter(function (){esd.mouseenterSnap()});
+      thumbc.mouseleave(function (){esd.mouseleaveSnap();});
       thumbc.mousedown(function (e){e.preventDefault();});
+      //esd.ordinal = lib.snaps.length;
       lib.snaps.push(esd);
+      //lib.snapDs.push(snapD);
       var tp = snapD.topic;
-      lib.snapDsByTopic[tp] = snapD;
+      //lib.snapDsByTopic[tp] = snapD;
+      lib.snapsByTopic[tp] = esd;
+      lib.snapsActive = lib.snaps.length;
     }
 
      util.log("imsrc",imsrc);
@@ -390,18 +404,18 @@
   }
   
   lib.anyCaptions = function () {
-    var ln = snapDs.length;
+    var ln = lib.snaps.length;
     for (var i=0;i<ln;i++) {
-      var sd = snapDs[i];
+      var sd = lib.snaps[i].snapD;
       if (sd.caption) return true;
     }
     return false;
   }
   
   lib.longCaptions = function (cln) {
-    var ln = snapDs.length;
+    var ln = lib.snapDs.length;
     for (var i=0;i<ln;i++) {
-      var sd = snapDs[i];
+      var sd = lib.snapDs[i];
       if (sd.caption && sd.caption.length > cln) return true;
     }
     return false;
@@ -410,16 +424,14 @@
   lib.snapsReady = false;
   
   lib.snapsActive = 0; // for initializing, we start with fewer than the whole snap set
-  lib.addSnaps = function (mxn) {
+  lib.addSnaps = function (snapDs,mxn) {
     var ln = snapDs.length;
-    if (!lib.custom) {
-      if (!lib.anyCaptions()) {
-       lib.snapThumbCaptionHeight = 20;
-      }
-      if (!lib.longCaptions(12)) {
-        lib.shortCaptions = true;
-       lib.snapThumbCaptionHeight = 40;
-      }
+    if (!lib.anyCaptions()) {
+     lib.snapThumbCaptionHeight = 20;
+    }
+    if (!lib.longCaptions(12)) {
+      lib.shortCaptions = true;
+     lib.snapThumbCaptionHeight = 40;
     }
     if (ln > mxn) {
       var ns = mxn;
@@ -431,11 +443,11 @@
     lib.snapsActive = ns;
     for (var i=0;i<ns;i++) {
       var sd = snapDs[i];
-      sd.ordinal = i; // later the ordinal will be in the snap
+      //sd.ordinal = i; // later the ordinal will be in the snap
       lib.addSnap(sd);
     }
-    if (!lib.custom) lib.positionSnaps(undefined,true,true);
-    if (rs) lib.snapsReady = true;
+    lib.positionSnaps(undefined,true,true);
+     if (rs) lib.snapsReady = true;
     return rs;
     //lib.ssDiv.click(function (){alert(555);});
   }
@@ -447,16 +459,34 @@
     //lib.snapArrayDiv.append(lib.captionDiv);
     lib.snapArrayDiv.css({width:"100%"});
     lib.snapArraySnapsDiv =  $('#snapArraySnaps');
+    if (lib.editPermissions()) {
+      $('#snapArrayNoSnaps').html('To add your first annotation, click "new snap"');
+      $('#snapArrayNoSnaps').css({'font-size':'15pt'});
+    }
+    if (lib.imOnly && (!idv.loggedInUser)) {
+      var txt = 'If you <a href="http://imagediver.org/login">log in</a>, you will be able to add your own annotations to this image.' +
+      'You can log in with your Tumblr account, and in any case registration is quick and free.';
+      $('#snapArrayNoSnaps').html(txt);
+      $('#snapArrayNoSnaps').css({'font-size':'10pt',"margin":"20pt"});
+    }
+
 
   }
   
   
-  lib.internalizeSnapD = function (snapD,sc) {
-    var cv = snapD.coverage;
+  lib.toSnapDObject = function (snd) {
+    if (snd instanceof idv.SnapD) return snd;
+    var rs = new idv.SnapD();
+    util.setProperties(rs,snd);
+    return rs;
+    
+  }
+  idv.SnapD.prototype.internalize= function (sc) {
+    var cv = this.coverage;
     var ext = cv.extent;
     var crn = cv.corner;
     var nc = {extent:{x:ext.x * sc,y:ext.y * sc}, corner:{x:crn.x * sc,y:crn.y* sc}};
-    snapD.coverage = nc;
+    this.coverage = nc;
   }
 })();
 

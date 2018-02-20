@@ -1,107 +1,274 @@
+
 (function () {
-var common = idv.common;
-var lib = page;
 
-var uploadCancelled = false;
+  var lib = page;
+  var geom = idv.geom;
+  var imlib = idv.image;
+
+  //var com = idv.common;
+  var util  = idv.util;
+  idv.css.link = {"text-decoration":"underline","cursor":"pointer"}
+  idv.pageKind = "album";
 
 
-lib.progressBar = function (options) {
-  this.options = options;
+lib.monitorUpload = function(upload) { // called from the Iframe
+  lib.theProgressBar.monitor(upload);
 }
 
-lib.progressBar.prototype.cancelUpload = function () {
-   u = this.options.upload;
-   if (!u) return;
-   var url = "/topic"+u.topic+"/cancel()";
-   var thisHere = this;
-   idv.util.post(url,null,function (rs) {
-        u.status = "cancelled";
-        uploadCancelled = true;
-        thisHere.update(u);
-        thisHere.cancelButton.hide();
-      });
+
+//lib.jobC = new jobController();
+
+
+lib.hideRetrieveOptions = function () {
+  $('#orIfUpload').hide();
+  $('#rt_row_1').hide();
+  $('#retrieveButton').hide();
+  $('#fromWhichUrl').hide(); 
 }
 
-lib.progressBar.prototype.render = function () {
-  var o = this.options;
-  var c = o.container;
-  var u = o.upload;
-  var w = o.width;
-  var h = o.height;
-  var outerDiv = $('<div id="uploadProgressBar" />');
-  this.outerDiv = outerDiv;
-  outerDiv.css({width:w,height:h,"background-color":"white"});
-  c.append(outerDiv);
-  var innerDiv = $('<div/>');
-  innerDiv.css({left:0,top:0,width:0,height:h,"background-color":"green"});
-  this.innerDiv = innerDiv;
-  outerDiv.append(innerDiv);
-  var textDiv = $('<div id="uploadText"/>');
-  textDiv.css({"margin-top":20,top:h+10,left:0,width:w});
-  c.append(textDiv);
-  textDiv.html("uploading "+u.name);
-  this.textDiv = textDiv;
-  var cancelButton = $('<input type="button" value="Cancel"/>');
-  cancelButton.css("margin-top",20);
-  c.append(cancelButton);
-  var thisHere = this;
-  this.cancelButton = cancelButton;
-  cancelButton.click(function () {thisHere.cancelUpload();});
-}
 
-progressBar.prototype.update = function (u) {
-  this.upload = u;
-  var o = this.options;
-  var size = u.size;
-  if (u.status == "notStarted") return;
-  if (u.status == "done") {
-    this.innerDiv.css({width:o.width});
-    this.outerDiv.hide();
-    this.cancelButton.hide();
-    var tmb = Math.ceil(size/1000000);
-    this.textDiv.html("<p>done uploading "+u.name+" "+tmb+"MB</p>");
-    return;
+lib.onError = function(job) {
+  var isUpload = lib.jobC.theJobs[0].kind == "upload";
+  $('#init').show();
+  $('#uploadProgress').hide();
+   if (isUpload) {
+    $("#uploadIframe").attr("src","/upload_iframe");
+    $("#uploadIframe").show();
+    lib.hideRetrieveOptions();
   }
-  if (u.status == "cancelled") {
-    this.outerDiv.hide();
-    this.textDiv.html("<p>cancelled uploading "+u.name+"</p>");
-    return;
-  }
-
-  var uploaded = u.uploaded;
-  var fr = uploaded/size;
-  var mb = Math.ceil(uploaded/1000000);
-  var tmb = Math.ceil(size/1000000);
-  var prc = Math.ceil(fr * 100);
-  var idw = Math.ceil(fr * o.width)
-  this.innerDiv.css({width:idw});
-  this.textDiv.html("<p>uploading "+u.name+"</p><p>uploaded: "+prc+"%  -- "+mb+"MB out of "+tmb+"MB</p>");
-
+  /*
+  var errv = JSON.parse(job.error);
+  var sz = errv.size;
+  var msg = "Apologies: ImageDiver currently supports images up to 0.5 gigapixels, and this has size "+util.bytesstring(sz,true)+". Import canceled.";
+  */
   
+  util.myAlert('Error',job.error);
+  //$('#initDivMsg').html("Error: "+job.error);
+  //if (!isUpload) $('#retrieveButton').attr("value","Try again");
 }
 
-var theProgressBar = null;
 
-var theUpload = null;
+lib.onCancel = function(job) {
+  $('#init').show();
+  $('#uploadProgress').hide();
+  var isUpload = lib.jobC.theJobs[0].kind == "upload";
+  if (isUpload) {
+    $("#uploadIframe").attr("src","/upload_iframe");
+    $("#uploadIframe").show();
+    $('#orIfUpload').hide();
+    $('#retrieveButton').hide();
+    $('#fromWhichUrl').hide();
+   // $('#initDivMsg').html("Canceled - try again if you like");
+    $('#initDivMsg').html("Canceled");
 
-function initProgressBar(upload) {
+
+  } else {
+     $('#retrieveButton').attr("value","Try again");
+     $('#initDivMsg').html("Canceled");
+  }
+}
+
+
+lib.initProgressBar = function(jobc,job,wd) {
   var pbc = $('#uploadProgress');
-  var pb = new progressBar({container:pbc,width:400,height:20,upload:upload});
+  pbc.show();
+  //pbc.empty();
+  $('#init').hide();
+
+  if (job.noMonitoring) return; // no monitoring needed
+  var o = {units:"",container:pbc,width:400,height:5,job:job,whenDone:wd}
+  if (job.kind == "upload") {
+    var sbo = JSON.parse(job.subject);
+    var imn = sbo.image_name;
+     idv.util.extend(o,{units:" MB",stageTitle:"Uploading",mainTitle:"Importing "+imn});
+  } else if (job.kind == "retrieve") {
+    sbo = JSON.parse(job.subject);
+    imn = sbo.image_name;
+    var src = sbo.source;
+    idv.util.extend(o,{units:" MB",stageTitle:"Retrieving",mainTitle:"Importing "+imn+" from "+src});
+  } else if (job.kind == "build_tiling") {
+    idv.util.extend(o,{stageTitle:"Creating tiles"});
+  } else if (job.kind == "to_s3") {
+    idv.util.extend(o,{stageTitle:"Copying to S3"});
+ } else if (job.kind == "resize_image") {
+    idv.util.extend(o,{stageTitle:"Resizing"});
+  } else {
+  
+    alert("UNKNOWN KIND "+job.kind);
+    return;
+  }
+  if (lib.theProgressBar) {
+    var pb = lib.theProgressBar;
+    pb.options = o;
+  } else {
+    var pb = new page.progressBar(o);
+    lib.theProgressBar = pb;
+  }
+  lib.theProgressBar = pb;
+  lib.theProgressBar.jobc = jobc;
+  jobc.progressBar = lib.theProgressBar;
   pb.render();
-  theProgressBar = pb;
-  $("#uploadIframe").hide();
+  //pb.ticker();
+  $("#uploadIframe").hide();  
 }
 
-function monitorUpload(upload) {
-    if (uploadCancelled) return;
-    var topic = upload.topic;
-    url = "/topic"+topic+"/get()"
-    idv.util.post(url,null,function (rs) {
-        var upload = rs.value;
-        theProgressBar.update(upload);
-        if (upload.status != "done") {
-          setTimeout(function () {monitorUpload(upload);},4000);
-        }
-      });
-})();
+function firstCharIsLetter(c) {
+    var cc = c.charCodeAt(0);
+    return ((65 <= cc) && (cc <= 90)) || ((97 <= cc) && (cc <= 122));
+  }
+lib.checkImageName = function (pw) {
+  var ln = pw.length;
+  if (ln == 0) return false;
+  var mt = pw.match(/^\w*$/);
+  if (!mt) return false;
+  return firstCharIsLetter(pw);
+}
+lib.fixImageName = function (pw) { // from filename
+  var ln = pw.length;
+  if (ln == 0) return false;
+  if (!firstCharIsLetter(pw)) {
+    pw = "im_"+pw; // rare case
+  }
+  var rs = pw.replace(/\W/g,"_");
+  return rs;
+}
 
+
+/*
+small
+http://www.sacred-destinations.com/italy/images/rome/sistine-chapel/last-judgment-wga-350.jpg
+
+large
+http://www.arkanastudio.pl/films/mlyn-i-krzyz-bruegel/img/varia/bruegel_calvary01.jpg
+*/
+
+function initialize2() {
+  var cn = $('.infoDiv');
+  idv.topbar.genTopbar(cn,{});
+
+  //cn.css(lib.inforCss);
+  util.addDialogDiv(cn);
+
+  //cn.css('border','solid thin white');
+  //var ttl = common.genTitle("File upload");
+  //cn.append(ttl);
+  var dialogDiv = $('<div id="dialog">Ho Ho</div>');
+  cn.append(dialogDiv);
+  dialogDiv.dialog({height:140,modal:true,autoOpen:false,title:"Error"});
+  lib.storageDiv = $('<div id = "storage">You have '+util.bytesstring(lib.availableStorage)+' of available storage. The storage needed for '+
+                     'the zoomable representation of an image is typically 2 or 3 times its compressed (jpg or png) size. </div>');
+  lib.storageDiv.css({"margin-bottom":"30px","font-size":"8pt"});
+  cn.append(lib.storageDiv);
+  lib.initDiv = $('<div id="init">' +
+      idv.common.genTable("rt",[
+        ['<span>Name for the image at ImageDiver:</span>', '<input size=50 id="imname" type="text"/>'],
+        ['<span id="fromWhichUrl">Url from which to retrieve the file:</span>','<input size=50 id="imurl" type="text"/>']])+
+//      '<div><input id="retrieveButton" type="button" value="Retrieve"/></div>'+
+      '<div style="margin-top:10px;margin-bottom:10px"><span id="retrieveButton" class="clickableElement">Retrieve</span></div>'+
+      '<div id="orIfUpload">Or, if the image is on your computer, choose and upload it: </div>'+
+      '<div id="initDivMsg"></div>'+
+  '</div>');
+  cn.append(lib.initDiv);
+    var imnf = $("#imname",window.parent.document);
+
+   imnf.change(function () {
+    lib.imageNameFromFileName = false;
+  });
+  cn.append('<div id="uploadProgress" style="width:100%"></div>');
+  cn.append('<iframe id="uploadIframe" seamless="1"></iframe>');
+  theIframe = $("#uploadIframe");
+  theIframe.attr("src","/upload_iframe");
+  lib.jobC.initProgressBar = lib.initProgressBar;
+  lib.jobC.onError = lib.onError;
+  lib.jobC.onCancel = lib.onCancel;
+  
+  
+  
+  
+  var rb = $('#retrieveButton')
+  
+  rb.click(function () {
+    //var nm = nmi.attr("value");
+    lib.isRetrieval = 1;
+    $('#storage').hide();
+    $("#initDivMsg").html('');
+    $('#orIfUpload').hide();
+    $("#uploadIframe").hide();
+    var usp = idv.loggedInUser.split("/")[2]
+    var imn = $('#imname').attr("value");
+    var ck = lib.checkImageName(imn);
+    if (!ck) {
+      util.myAlert('Error',"The image name may contain only numbers, letters, and the underbar, and must start with a letter");
+      return;
+    }
+    // $('#init').hide();
+    idv.imageName = imn;
+    var src = $('#imurl').attr("value");
+    var sbj = JSON.stringify({"image_name":imn,"source":src});
+  
+    var data = [{"subject":sbj,"kind":"retrieve","owner":usp},
+    /*
+       {"subject":sbj,"kind":"add_image_to_db",owner:usp},  NEWUPLOAD remove the following lines*/
+    /* NOTE if the job is too big, these get added to the jobs db, but ignored */
+        {"subject":imn,"kind":"resize_image","owner":usp},
+       {"subject":imn,"kind":"build_tiling","owner":usp},
+       {"subject":imn,"kind":"to_s3","owner":usp}
+       ];
+    
+    //var data = [{"subject":imn,"kind":"to_s3","owner":usp}];
+    //var data = [{"subject":imn,"kind":"resize_image","owner":usp}];
+    url = "/api/allocateJob";
+    lib.jobC.canceled = 0;
+    lib.jobC.cjob = 0;
+    idv.util.post(url,data,function (rs) {
+      if (rs.msg =="sessionTimedOut") {
+        util.logout();
+        location.href = "/timeout";
+        return;
+      }        
+      if (rs.value == "exists") {
+        util.myAlert("","An image with that name is already present. Delete it first if you wish to replace it");
+        return false;
+      }
+      var jobs = rs.value;
+      //jobs[1].noMonitoring = true;
+      lib.jobC.theJobs = jobs;
+
+      var j = jobs[0]
+      var exists = j.retries;
+      if (exists) {
+        var ifyes = function () {lib.jobC.startJob();};
+        var ifno = function () {util.closeDialog();};
+        util.myConfirm("","A file by that name exists. Overwrite?",ifyes,ifno);
+        return;
+      }
+      lib.jobC.startJob();
+      return false;
+    });
+
+  });
+}
+  
+  
+lib.initialize = function (options) {
+  util.commonInit(options);
+  lib.availableStorage = options.allocation - options.utilization;
+  lib.jobC = new jobController();
+
+  $(document).ready(initialize2);
+
+
+$(window).unload(function () {
+  if (lib.theProgressBar) {
+    var u = lib.theProgressBar.upload;
+    if (u && u.status == "uploading") {
+      lib.theProgressBar.cancelUpload();
+      $('#dialog').html("By leaving this page, you are canceling the import");
+      $('#dialog').dialog('open');
+    }
+  }
+});
+
+}
+
+})();

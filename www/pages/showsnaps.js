@@ -1,11 +1,4 @@
-(function () {
-  
-  var lib = page;
-  var geom = exports.GEOM2D;
-  var imlib = exports.IMAGE;
-  var com = idv.common;
-  var util  = idv.util;
-  
+
   /* this code manages the overlay  set. There are three states for a snap: selected, outlined, noOverlay (undefined counts as invisible)
     This state is held in the overlayState property of the snapD. updateOverlays() updates the overlays from the snaps
     There are three gglobal variables holding snaps:
@@ -14,12 +7,28 @@
     lib.snapDs: the snapDs.
   */
   
+  
+  
+   
+(function () {
+  
+  var lib = page;
+  var geom = idv.geom;
+  var image= idv.image;
+  var com = idv.common;
+  var util  = idv.util;
+
+   
+  
   lib.clearOverlayState = function () {
     var dfs = lib.showSnapsMode?"outlined":"noOverlay";
-    util.arrayForEach(lib.snapDs, function (snapD) {
-      snapD.overlayState = dfs
+    util.arrayForEach(lib.snaps, function (snap) {
+      snap.snapD.overlayState = dfs;
     });
   }
+  
+  
+  
   lib.updateOverlays = function (which) {
     var vp = lib.vp;
     if (which == "selected") {
@@ -29,13 +38,15 @@
     } else {
       vp.clearOverlays("both");
     }
-    util.arrayForEach(lib.snapDs,function (snapD) {
+    util.arrayForEach(lib.snaps, function (snap) {
+   // util.arrayForEach(lib.snapDs,function (snapD) {
+      var snapD = snap.snapD;
       var st = snapD.overlayState;
       if ((st == "selected") && ((which == "selected") || (which == "both"))  ||
           ((st == "outlined") &&  ((which == "outlined") || (which == "both")))) {
         var cv = snapD.coverage;
         var nm = snapD.topicId;
-        var ov = new imlib.Overlay(nm,cv);
+        var ov = new image.Overlay(nm,cv);
         ov.color = (st == "selected")?"yellow":"red"
     //if (snapD.selected) ov.selected; // this is for the selection in showSnapMode
         vp.addOverlay(ov);
@@ -54,7 +65,7 @@
     }
   }
   
-  imlib.mouseMoveCallback = function (ps) {
+  image.mouseMoveCallback = function (ps) {
     
   }
   // draws a single rect on the specified clip/layer, ignoring other considerations
@@ -66,28 +77,9 @@
   }
   
   // returns a count if more than one snap, or no snaps, at ps;  ow returns the snap.
+  // 7/26/12 no more multiple selectsl so replace this by selection of a single snap
   lib.computeSnapRelevance = function (ps) {
-    var cnt = 0;
-    var theSnap;
-    //var ovs = lib.vp.overlays;
-    util.arrayForEach(lib.snapDs,function (snapD) {
-      var cv = snapD.coverage;
-      var rl = cv.contains(ps);
-      //if (rl) console.log(snapD,cv,ps,rl);
-      snapD.relevant = rl;
-      snapD.clickSelected = rl;
-      /*
-       var ov = ovs[snapD.topicId];
-      if (ov) {
-        ov.selected = rl;
-      }
-      */
-      if (rl) {
-        theSnap = snapD;
-        cnt++;
-      }
-    });
-    if (cnt == 1) return theSnap; else return cnt;
+    return lib.snapHit(ps);
   }
   
   lib.clickSelectedSnaps = function () {
@@ -101,35 +93,81 @@
   }
   
   
-  lib.snapHit = function (ps) {
-    var snapDs = lib.snapDs;
-    var ln = snapDs.length;
+  
+  
+  lib.snapsHit = function (ps) {
+    var snaps = lib.snaps;
+    var ln = snaps.length;
+    var rs = [];
     for (var i=0;i<ln;i++) {
-      var snapD = snapDs[i];
+      var snapD = snaps[i].snapD;
       var cv = snapD.coverage;
-      if (cv.contains(ps)) return snapD;
+      if (cv.contains(ps)) {
+        //util.slog("HIT");
+        rs.push(snapD);
+      }
     };
+    return rs;
   }
   
+  lib.closestSnap = function (sns,ps) {
+    var mind = 1000000000.0;
+    var rs = undefined;
+    util.arrayForEach(sns,function (sn) {
+      var cv = sn.coverage;
+      //var d = cv.distToEdge(ps);
+      var d = cv.distToCenter(ps);
+      if (d < mind) {
+        rs = sn;
+        mind = d;
+      }
+    });
+    return rs;  
+  }
+  
+  
+  lib.snapHit = function (ps) {
+    var snaps = lib.snapsHit(ps);
+    return lib.closestSnap(snaps,ps);
+  }
+ 
+  
  // takes care of the captions over the snap outlines
-  imlib.mouseMoveCallback = function (ps,vps) {
+  
+  image.mouseMoveCallback = function (ps,vps) {
     if (!lib.showSnapsMode) return;
     var snhit = lib.snapHit(ps);
     var dv = lib.vpCapDiv;
+    var vp = lib.vp;
     if (snhit) {
+      if (vp.cHili != snhit) {
+        var cv = snhit.coverage.expand(image.selectStrokeWidth);
+        vp.clearOverlay(2);
+        if (idv.useFlash) {
+          vp.drawImRect(cv,"white",2,false,image.selectStrokeWidth*0.5);
+        } else {
+          vp.drawRect(cv,"image","white",2);
+        }
+        vp.cHili = snhit;
+      }
      // lib.showSelectedSnap(snhit);  this is kinda cool; EXPERIMENT LATER
       var cpt = snhit.caption;
       if (cpt) {
         dv.show();
-        dv.html(lib.removeWikiSymbols(snhit.caption));
+        dv.html(util.removeWikiSymbols(snhit.caption));
         dv.css({left:vps.x+13,top:vps.y-13});
+      } else {
+        dv.hide();
       }
+      
     } else {
       dv.hide();
+      vp.cHili = null;
+      vp.clearOverlay(2);
     }
   }
   
-  imlib.mouseOutCallback = function () {
+  image.mouseOutCallback = function () {
     lib.vpCapDiv.hide();
   }
  
@@ -145,10 +183,13 @@
     return cv.contains(p);
     
   }
+  
   // ps is image  coords; vps is viewport coords
-  imlib.clickCallback = function (ps,vps,dclick) {
+  image.clickCallback = function (ps,vps,dclick) {
     //lib.vpCapDiv.css({left:vps.x,top:vps.y});
     //if (!dclick) lib.preClickSelectedSnap = lib.selectedSnap; // so we know what snap to zoom to if this the first click of a double click
+      //if ((lib.currentPanel) && (lib.currentPanel.name == "createSnap")) return; // cannot select when creating a snap
+      if (!lib.showSnapsMode) return;
       if (dclick) {
         if (lib.preClickSelSnap) { // this is the snap that was selected just before multiple snaps were selected; get it back, if it is the  one clicked on
           if (lib.snapContains(lib.preClickSelSnap,ps)) {
@@ -188,33 +229,12 @@
     //console.slog("CLICK CALL BACK",ps);
     }
     var csr = lib.computeSnapRelevance(ps);
-    function selectMultipleSnaps() {
-      lib.leaveSnapVisibilityAlone = true;
-      lib.selectPanel("snapArray");
-      lib.leaveSnapVisibilityAlone = false;
-      lib.positionSnaps(undefined,true,false); // capht, force, showall
-      lib.enableClickable(lib.snapArrayButton);
-      lib.DclickTimeoutId = undefined;
-      lib.preClickSelSnap = undefined;
-      lib.snapAdvice.html("multiple snaps selected. choose one from left panel");
-          
-    }
-    if (typeof csr == "number") {
-      lib.preClickSelSnap = lib.selectedSnap;
-      var csls = lib.clickSelectedSnaps();
-      lib.setSelectedSnaps(csls,"nochange");
-      lib.DclickTimeoutId = setTimeout(selectMultipleSnaps,imlib.dclickInterval+50);
-      return;
-    //lib.setSnapsMessage();
-      //lib.snapArrayButton.html("all snaps in view");
-      
-      //    lib.showOverlaysForSnaps(lib.snapDs);
-
-    } else {
-      lib.preClickSelSnap = undefined;
-      lib.showSelectedSnap(csr);
-      lib.selectPanel("selectedSnap");
-    }
+    if (typeof csr == "number") { // OBSOLETE OPTION
+      util.error("OBSOLETE");
+    } 
+    lib.preClickSelSnap = undefined;
+    lib.selectPanel("selectedSnap");
+    lib.showSelectedSnap(csr);
     lib.showSnapsMode = true; // this mode is turned off temporarilty by selecting the snap, but in this case, we want it to stay on
 
     //lib.showOverlaysForSnaps(lib.snapDs);
@@ -240,7 +260,7 @@
     var cnt = 0;
     var ns = lib.snapsActive;
     for (var i =0 ;i<ns;i++) {
-      var snapD = snapDs[i];
+      var snapD = lib.snaps[i].snapD;
       snapD.visible = vw.intersects(snapD.coverage);
       if (snapD.visible) cnt++;
       snapD.relevant = lib.snapRelevant(snapD,vw);
@@ -251,17 +271,21 @@
     return cnt;
   }
   
-  lib.enterShowSnapsMode = function () {
-    if (lib.showSnapsMode) return;
-    lib.showSnapsMode = true;
-    var vp = lib.vp;
-    //vp.changeViewCallbacks.push(lib.computeSnapVisibility);
+  lib.redisplaySnaps = function () {
     lib.computeSnapVisibility();
-    lib.showSnapsButton.html('hide outlines');
     lib.snapAdvice.show();
     lib.clearOverlayState(0); // 
     lib.updateOverlays("outlined");
+  }
+  
+  lib.enterShowSnapsMode = function () {
+    if (lib.showSnapsMode) return;
+    lib.showSnapsMode = true;
+    lib.redisplaySnaps();
+    //vp.changeViewCallbacks.push(lib.computeSnapVisibility);
     lib.snapAdvice.html(lib.stdSnapAdvice());
+    lib.showSnapsButton.html('hide outlines');
+
     //lib.showOverlaysForSnaps(snapDs);
   }
   
@@ -272,13 +296,10 @@
 
     lib.showSnapsMode = false;
     var vp = lib.vp;
-    //util.removeFromArray(vp.changeViewCallbacks,lib.computeSnapVisibility);
-    //vp.clearOverlay();
-    //vp.clearOverlays();
-    lib.showSnapsButton.html('show outlines');
+     lib.showSnapsButton.html('show outlines');
     lib.snapAdvice.html("");
-    util.arrayForEach(lib.snapDs,function (snapD) {
-      snapD.clickSelected = false;
+    util.arrayForEach(lib.snaps,function (snap) {
+      snap.snapD.clickSelected = false;
     });
     lib.clearOverlayState(); 
     lib.updateOverlays("outlined");
@@ -289,64 +310,9 @@
   lib.ss = function () {
     lib.enterShowSnapsMode();
   }
-  /*
-  lib.showOverlaysForSnaps = function (snapDs) {
-    var vp = lib.vp;
-    vp.clearOverlay();
-    vp.clearOverlays();
-    util.arrayForEach(snapDs,function (snapD) {if (snapD.visible) lib.showOverlayForSnap(snapD);});
-    vp.drawOverlays("both");
-  }
-  */
-  // ok now the handling of selected snaps. These are handled with divs.
-  /*
-  lib.selectDivs = [];
-  
-  lib.allocateSelDivs = function (n) {
-    var divs = lib.selectDivs;
-    var ln = divs.length;
-    if (n <= ln) return;
-    for (var i = ln; i<n;i++) {
-      var cdv =  $('<div class="vpSelect" id="vpSelect" style="margin:0px;padding:0px;position:absolute;background-color:transparent;font-size:8pt;z-index:2000;border:solid yellow;border-width:2px;"></div>');
-      lib.vpDiv.append(cdv);
-      lib.selectDivs.push(cdv);
-    }
-  }
-  
-  lib.drawVpRect = function (r) {
-      lib.allocateSelDivs(1);
-      var dv = lib.selectDivs[0]
-      dv.show();
-      lib.vp.divToRect(r,"image",dv);
-  }
-  lib.drawSelectedSnaps = function () {
-    var snps = lib.selectedSnaps;
-    var ln = snps.length;
-    var vp = lib.vp;
-    lib.allocateSelDivs(ln);
-    for (var i=0;i<ln;i++) {
-      var dv = lib.selectDivs[i];
-      dv.show();
-      var s = snps[i];
-      vp.divToRect(s.snapD.coverage,"image",dv);
-    }
-    var fln = lib.selectDivs.length;
-    for (var i=ln;i<fln;i++) {
-      lib.selectDivs[i].hide();
-    }
-  }
-  
-
-  lib.hideSnapSelections = function () {
-   var fln = lib.selectDivs.length;
-    for (var i=0;i<fln;i++) {
-      lib.selectDivs[i].hide();
-    }
-  }
- 
-  */
     
-
+  
 
 })();
 
+  

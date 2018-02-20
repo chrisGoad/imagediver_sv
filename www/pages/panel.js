@@ -1,8 +1,9 @@
 (function () {
   
   var lib = page;
-  var geom = exports.GEOM2D;
-  var imlib = exports.IMAGE;
+  var geom = idv.geom;
+  var imlib = idv.image;
+
   var com = idv.common;
   var util  = idv.util;
 
@@ -58,11 +59,9 @@
       var cpan = lib.panels[nm];
       var cpn = cpan.panel;
       var actv = cpan.activator;
-    
-        
-     
       if (!cpn) continue;
       if (nm == panelName) {
+        if (lib.currentPanel == cpan) continue;
         if (actv) {
           lib.selectClickable(actv);
         }

@@ -10,11 +10,21 @@ dive deep into high resolution images, and bring back what you find
 
 (function () {
   
+  
+  
   var lib = idv;
-  var geom = exports.GEOM2D;
-  var imlib = exports.IMAGE;
+  var geom = idv.geom;
+  var imlib = idv.image;
   var util  = idv.util;
 
+
+  function log() {
+    if (0) {
+      var a = util.argsToString(arguments);
+      util.slog1(a);
+    }
+  }
+  
   
   
   // options: container, maxZoom,setZoom function,getZoom function,zoomFactor,zoomIncrement
@@ -42,7 +52,7 @@ dive deep into high resolution images, and bring back what you find
    // zoomerContainer.css({"left":0,"top":marginY,"width":totalWidth,"height":ht,"position":"absolute",
    //                   "background-color":"#444444"});
     zoomerContainer.css({"left":0,"top":marginY,"width":totalWidth,"height":ht,position:"relative",
-                      "background-color":"#444444"});
+                      "background-color":util.bkColor});
     container.append(zoomerContainer);
 
     var circleExtent = new geom.Point(ht,ht);
@@ -50,13 +60,13 @@ dive deep into high resolution images, and bring back what you find
     
     var minusCanvas= $('<img/>');
     minusCanvas.css({"left":0,"top":0,"width":25,"height":25,"position":"absolute",
-                      "background-color":"#444444"});
+                      "background-color":util.bkColor});
     zoomerContainer.append(minusCanvas);
     minusCanvas.attr("src","/minus.png");
 
     var plusCanvas= $('<img/>');
     plusCanvas.css({"left":marginX+ht+barWidth+smallSep,"top":0,"width":24,"height":24,"position":"absolute",
-                      "background-color":"#444444"});
+                      "background-color":util.bkColor});
     zoomerContainer.append(plusCanvas);
     plusCanvas.attr("src","/plus.png");
     
@@ -260,7 +270,7 @@ dive deep into high resolution images, and bring back what you find
         this.setZoom(nz);
         dt = new Date();
         var etm = dt.getTime() - ctm;
-        util.log("zoomer",Math.floor(etm));
+        log("zoomer",Math.floor(etm));
         setTimeout(function () {thisHere.zoomer()},this.zoomDelay);
       } else {
         this.zoomingIn = false;
@@ -281,16 +291,24 @@ dive deep into high resolution images, and bring back what you find
   
   
   lib.zoomSlider.prototype.stopZooming = function () {
+    log("STOP ZOOMING");
+
     if (page.vp.depth != page.vp.actualDepth) { // we have deferred some tile loading
-      page.vp.needsRefresh = true;
+      //page.vp.needsRefresh = true;
       this.depth = this.actualDepth;
     }
   //  util.slog("DEPTH ",page.vp.depth,this.startZoomDepth);
+
+    var czm = this.getZoom();
+    page.vp.needsRefresh = true;
+    page.vp.fromZooming = true;
+    page.vp.cachedCoverage = null;
+    page.vp.needsRefresh = true;
+    page.zooming = false;
+    this.setZoom(czm); // will bump the depth if needed
+    page.vp.fromZooming = false;
     this.zoomingIn = false;
     this.zoomingOut = false;
-    page.zooming = false;
-    
-    this.setZoom(this.getZoom()); // will bump the depth if needed
 
   }
   

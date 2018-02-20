@@ -8,7 +8,7 @@ neo.pcommon = {};
 
 (function () {
   var lib = neo.pcommon;
-  var geom = exports.GEOM2D;
+  var geom = idv.geom;
   var nit = neo.nit;
   
   var dom = neo.dom;
@@ -23,7 +23,7 @@ neo.pcommon = {};
    var rf = new dom.RowField({},dom.TextInput,"horf");
    var vr = nit.variant(rf,
     [[rf.title.css,{"font-weight":"bold","color":"green"}],
-     [rf.warning.css,{"color":"red"}]]);
+     [rf.warning.css,{"color":util.errorColor}]]);
   var vre = vr.evaluate();
   lib.textField = vre;
   
@@ -33,7 +33,7 @@ neo.pcommon = {};
    var vr = nit.variant(rf,
     [[rf.title.css,{"font-weight":"bold","color":"green"}],
      [rf.input.attributes,{"COLS":40,"ROWS":6}],
-     [rf.warning.css,{"color":"red"}]]);
+     [rf.warning.css,{"color":util.errorColor}]]);
   var vre = vr.evaluate();
   lib.textArea = vre;
 
@@ -56,7 +56,7 @@ neo.pcommon = {};
   lib.signin = vr.evaluate();
   /*
   lib.loginCallback = function (data) {
-    alert(data);
+    //alert(data);
   }
   lib.loginFields= new dom.Fields({apiUrl:"/api/login",apiCallback:lib.loginCallback},[{username:lib.usernameField},{password:lib.passwordField},{submit:lib.signin}],'<table/>');
  */

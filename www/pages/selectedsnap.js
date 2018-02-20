@@ -1,8 +1,21 @@
+/*
+function fixM(m,p1,p2,off,st) {
+  return "["+p2+"]("+p1+")";
+}
+function toM(x) {
+  var re = /\[\[([^\|]*)\|([^\]]*)\]\]/g;
+  //var m = x.match(re);
+  return x.replace(re,fixM)
+  //"["+m[2]+"]("+m[1]+")";
+}
+
+toM('[[http://en.wikipedia.org/wiki/George_Washington|George Washington]]')
+*/
 
 (function () {
   var lib = page;
-  var geom = exports.GEOM2D;
-  var imlib = exports.IMAGE;
+  var geom = idv.geom;
+  var imlib = idv.image;
   var com = idv.common;
   var util  = idv.util;
 
@@ -19,21 +32,7 @@
   //lib.copySnapData = function (dst,src) {//  only copies data that will change in this context
  //  util.setProperties(dst,src,["caption","coverage","description"
   lib.setSelectedSnapCallbacks = [];
-  /*
-  lib.setSelectedSnap = function (s) {
-    if (!s) {
-      lib.selectedSnap = undefined;
-      lib.selectedSnaps = [];
-    } else {
-      var ss = lib.buildSelectedSnap(s.snapD.topic); 
-      lib.selectedSnap = ss;
-      lib.selectedSnaps = [ss];
-      //lib.allSelectedSnaps[s.snapD.topic] = ss;
-    }
-    lib.drawSelectedSnaps();
-    util.runCallbacks(lib.setSelectedSnapCallbacks);
-  }
-  */
+ 
   
   lib.setSelectedSnaps = function (sns,snapAdvice,noBuild) { 
     //console.trace();
@@ -49,6 +48,7 @@
       ss.push(lib.buildSelectedSnap(snapD.topic,true));
     }
     if (ln == 1) {
+
       lib.selectedSnap = ss[0];
       if (!sna) sna = lib.stdSnapAdvice();
 
@@ -56,7 +56,7 @@
       lib.selectedSnap = undefined;
       if (!sna) sna = "no snap selected. try again if you like.";
 
-    } else  {
+    } else  { // OBSOLETE CASE
       lib.selectedSnap = undefined;
       if (!sna) sna = "multiple snaps selected. choose one from left panel";
     }
@@ -88,22 +88,41 @@
     } else {
       lib.setSelectedSnaps([],snapAdvice);
     }
+    lib.updateButtonVis();
+
   }
   // after a snap is added at the server
   
+  lib.maxOrdinal = function () {
+    var mxo = 0;
+    util.arrayForEach(lib.snapDs,function (snd) {
+      mxo = Math.max(mxo,snd.ordinal);
+    })
+    return mxo;
+  }
   lib.snapCallback = function (data) {
     //$('#cropSnapButtons').show();
    // $('#saveSnapButton').show();
     var snapD = data.value;
     if (!lib.editingSnap) {
-      snapD.ordinal = lib.snaps.length;
+      snapD.ordinal = lib.maxOrdinal() + 1;
+      snapD.myIndex = lib.snapDs.length;
+      lib.snapDs.push(snapD);
     }
     lib.addSnap(snapD,lib.editingSnap);
     if (lib.editingSnap) {
+      lib.clearSelectedSnaps();
       lib.showSelectedSnap(lib.editingSnap);
+     // var ss = lib.selectedSnap;
+     // var img = ss.bigImg;
+     // img.attr("src",lib.snapDfullsize(snapD));
     } else {
+      lib.fixNextToLastSelectedSnap();
       lib.showSelectedSnap(snapD);
       
+    }
+    if (lib.showSnapsMode) {
+      lib.redisplaySnaps();
     }
     //lib.showLowerPanel("snapArrayDiv");
   }
@@ -123,18 +142,16 @@
     //lib.vp.clearOverlays();
     //lib.setSelectedSnaps([]);
     if (!selsnap) return;
+    function hideIfNonNull(x){
+      if (x) x.hide();
+    }
     //lib.hideSnapSelections();
     //var selsnap = lib.selectedSnap;
-    if (selsnap.prevThumb) {
-      selsnap.prevThumb.hide();
-    }
-    if (selsnap.nextThumb) {
-      selsnap.nextThumb.hide();
-    }
-    selsnap.element.hide();
-    selsnap.bigImg.hide();
-    //lib.selectedSnapDiv.hide();
-    //lib.snapArrayDiv.show();
+    hideIfNonNull(selsnap.prevThumb);
+    hideIfNonNull(selsnap.nextThumb);
+    hideIfNonNull(selsnap.element);
+    hideIfNonNull(selsnap.bigImg);
+     
   }
   
   lib.hideAllSelectedSnaps = function () {
@@ -144,50 +161,12 @@
       var cs = ss[k];
       lib.hideSelectedSnap(cs);
     }
-    util.tlog("hideAllSelectedSnaps");
+    //util.tlog("hideAllSelectedSnaps");
   }
-  /* moved to zoom_to_snap.js
-  lib.interpolateCoverage = function (startCov,destCov,v) {
-    if (v >=1) v = 1;
-    var covNow = startCov.interpolate(destCov,v);
-    var covRect = geom.internalizeRect(covNow);
-    lib.vp.setCoverage(covRect);
-    lib.zSlider.positionSliderFromZoom(lib.vp.zoom);
-    if (v < 1) {
-      setTimeout(function () {lib.interpolateCoverage(startCov,destCov,v+0.1);},50);
-    } else {
-      page.zooming = false;
-      lib.zSlider.setZoom(lib.zSlider.getZoom()); // set the depth and grab tiles
-    }
-  }
-  
-  lib.zoomToSnap = function (snapD,scale) {
-    if (!scale) scale = 1.1;
-    var cov = snapD.coverage;
-    var scov = cov.scale(scale);
-    var covRect = geom.internalizeRect(scov);
-    lib.vp.setCoverage(covRect);
-    lib.zSlider.positionSliderFromZoom(lib.vp.zoom);
-  }
-
-  lib.animatedZoomToSnap = function (snapD,scale) {
-    page.zooming = true;
-    var startCov = lib.vp.coverage();
-    if (!scale) scale = 1.1;
-    var destCov = snapD.coverage.scale(scale);
-    lib.interpolateCoverage(startCov,destCov,0);
-   
-  }
-  
-  lib.zoomToSelectedSnap = function () {
-    lib.vp.setZoom(1);
-    lib.animatedZoomToSnap(lib.selectedSnap.snapD,1.1);
-  }
-    
-  */
+ 
   lib.thumbWidth = function (snapD) {
     var xt = snapD.coverage.extent;
-    var aspectRatio =  xt.y/xt.x;
+    var aspectRatio =  Math.max(lib.minAspectRatio,xt.y/xt.x);
     var snapH = lib.snapThumbHeight;    
     return snapH/aspectRatio;
   }
@@ -204,7 +183,7 @@
     }
     var snaps = lib.snaps;
     var snapD = snapC.snapD;
-    var o = snapD.ordinal;
+    var o = snapD.myIndex;
     //var sso = {element:ssic,snapD:snapD,prevThumb:prevThumb,nextThumb:nextThumb};
     var prevThumb = snapC.prevThumb;
     var prevNextWidth = lib.prevNextWidth;
@@ -217,7 +196,7 @@
     }
     var rs = {};
 
-    var snapW = lib.snapWidth(snapD);
+    var snapW = snapD.width();
     var snapH = lib.snapHeight;
     var snapDH = 0;
     if (snapW > availWidthForSnap) {
@@ -278,16 +257,8 @@
       var nextExtent = new geom.Point(thumbW,thumbH);
       var nextCorner = new geom.Point(thumbLeft,athumbTop);
       rs.nxt = new geom.Rect(nextCorner,nextExtent);
-      //var ncss = {width:thumbW,height:thumbH};
-      //nextThumb.css(ncss);
-      //var nccss = {position:"absolute","top":lib.thumbTop,left:thumbLeft,width:thumbW};
-      //$("#selectedSnapNext").css(nccss);
-      //$('#selectedSnapNextLabel').show();
-      //nextThumb.show();
     } 
-    // this is the part of the panel which must allocated, left and right, to prev,next
-    //var availWidthForSnap = divW - 2*prevNextWidth - 100;
-   
+    
     return rs;
   }
   
@@ -320,12 +291,12 @@
   
   lib.showMainImage = function (snap) {
      if (snap.bigImageLoaded) {
-      util.tlog("SHOWING BIG IMG FOR ",snap.snapD.topic);
+      //util.tlog("SHOWING BIG IMG FOR ",snap.snapD.topic);
       snap.element.hide();
       snap.bigImg.show();
       var rs = snap.bigImg;
     } else {
-      util.tlog("SHOWING SMALL IMG FOR ",snap.snapD.topic);
+      //util.tlog("SHOWING SMALL IMG FOR ",snap.snapD.topic);
       rs = snap.element;
       snap.element.show();
       snap.bigImg.hide();
@@ -347,7 +318,7 @@
     var divW = lib.panelDiv.width();
     var snaps = lib.snaps;
     var snapD = snapC.snapD;
-    var o = snapD.ordinal;
+    var o = snapD.myIndex;
     //var sso = {element:ssic,snapD:snapD,prevThumb:prevThumb,nextThumb:nextThumb};
     var prevp = positions.prev;
     if (prevp) {
@@ -364,12 +335,17 @@
     var snapp = positions.snap;
     lib.positionPic(mainImg,$('#selectedSnap'),snapp,sc);
     idv.util.log("snaparray","SNAPP",snapp);
-    var dW = sc* uW * 0.8; // description width
-    var dLeft =sc*uW*0.1;
-    var dsTop = sc*(snapp.extent.y + snapp.corner.y) + $('.selectedSnapImages').position().top;
+    var dW = sc* uW * 0.6; // description width WAS 0.8
+    var dLeft =sc*uW*0.2; // was 0.1
+    // hack for IE8 where .position() returned null
+    var simpos =  $('.selectedSnapImages').position();
+    var simtop =simpos.top;
+    util.slog("SIMPos ",simpos,simtop);
+    var dsTop = sc*(snapp.extent.y + snapp.corner.y) + simtop;
 //    var dsTop = sc*(lib.snapHeight + snapp.corner.y) + $('.selectedSnapImages').position().top;
         util.log("snaparray","CORNER",snapp.corner.y);
-    var capTop = sc*(snapp.corner.y) + $('.selectedSnapImages').position().top-50;
+    var capht = $("#selectedSnapCaption").height();
+    var capTop = sc*(snapp.corner.y) + simtop-15-capht; // was -50
 
     util.log("snaparray","DSTOP",dsTop);
         $('#selectedSnapCaption').css({left:dLeft-10,top:capTop,width:dW,"text-align":"center"});
@@ -411,7 +387,7 @@
     if (!lib.twoColumns) sc = 0.5*sc;
 
     var snapD = snapC.snapD;
-    var o = snapD.ordinal;
+    var o = snapD.myIndex;
     var snaps = lib.snaps;
     if (o >= snaps.length-1) return;
     var nsnap = snaps[o+1]; // the representation of the snap for the snap array
@@ -433,9 +409,10 @@
   lib.buildInterpolators = function (snapC,direction) {
     var rs = [];
     var snapD = snapC.snapD;
-    var o = snapD.ordinal;
+    var o = snapD.myIndex;
     var snaps = lib.snaps;
     var numSnaps = snaps.length;
+    // here nsnapC is the snap that will next assume the center position
     if (direction == 1) {
       if (o >= numSnaps-1) return;
       var isFirstSnap = o==0;
@@ -443,8 +420,8 @@
       var nsnap = snaps[o+1]; // the representation of the snap for the snap array
       var nsnapC = lib.buildSelectedSnap(nsnap.snapD.topic,true);// build the selected snap structure
       
-      var p0 = lib.positionsForSelectedSnapElements(snapC);
-      var p1 = lib.positionsForSelectedSnapElements(nsnapC);
+      var p0 = lib.positionsForSelectedSnapElements(snapC); // where do the elemnts of this snap go?
+      var p1 = lib.positionsForSelectedSnapElements(nsnapC);// where to the elements of the next snap go?
       if (!isFirstSnap) {
         var prevDest = new geom.Rect(p0.prev.center(),new geom.Point(1,1));
         var prevStart = p0.prev;
@@ -452,15 +429,19 @@
         var intr = {startRect:prevStart,destRect:prevDest,pic:prevThumb,container:$("#selectedSnapPrev")};
         rs.push(intr);
       }
+      
+      var snapDest = p1.prev;
+      var snapStart = p0.snap;
+      intr = {startRect:snapStart,destRect:snapDest,pic:snapC.element,container:$("#selectedSnap")};
+      rs.push(intr);
+ 
       var nxtDest = p1.snap; // in going forward, this is the destination of next
       var nxtStart = p0.nxt;
       var nextThumb = snapC.nextThumb;
       var intr = {startRect:nxtStart,destRect:nxtDest,pic:nextThumb,container:$("#selectedSnapNext")};
       rs.push(intr);
-      var snapDest = p1.prev;
-      var snapStart = p0.snap;
-      intr = {startRect:snapStart,destRect:snapDest,pic:snapC.element,container:$("#selectedSnap")};
-      rs.push(intr);
+      
+      
       var cv0 = snapD.coverage;
       var cv1 = nsnapC.snapD.coverage;
       intr = {startRect:cv0,destRect:cv1,drawRect:true}
@@ -469,32 +450,34 @@
     } else {
       if (o == 0) return;
       var isLastSnap = o == numSnaps-1;
-      var isFirstSnap = o==1;
       var nsnap = snaps[o-1]; // the representation of the snap for the snap array
       var nsnapC = lib.buildSelectedSnap(nsnap.snapD.topic,true);// build the selected snap structure
       
       var p0 = lib.positionsForSelectedSnapElements(snapC);
       var p1 = lib.positionsForSelectedSnapElements(nsnapC);
-      if (!isLastSnap) {
-        var nextDest = new geom.Rect(p0.nxt.center(),new geom.Point(1,1));
-
-        //var nextDest = p0.nxt.plus(new geom.Point(100,0));
+      if (!isLastSnap) {  //shrink the next snap, if any
+         var nextDest = new geom.Rect(p0.nxt.center(),new geom.Point(1,1));
         var nextStart = p0.nxt;
         var nextThumb = snapC.nextThumb;
         var intr = {startRect:nextStart,destRect:nextDest,pic:nextThumb,container:$("#selectedSnapNext")};
         rs.push(intr);
+       
       }
-      if (!isFirstSnap) {
-        var prevDest = p1.snap; // in going forward, this is the destination of next
-        var prevStart = p0.prev;
-        var prevThumb = snapC.prevThumb;
-        var intr = {startRect:prevStart,destRect:prevDest,pic:prevThumb,container:$("#selectedSnapPrev")};
-        rs.push(intr);
-      }
-      var snapDest = p1.nxt;
-      var snapStart = p0.snap;
-      intr = {startRect:snapStart,destRect:snapDest,pic:snapC.element,container:$("#selectedSnap")};
+      var snapCDest = p1.nxt; //  the destination of the current snap 
+      var snapCStart = p0.snap; // the original position of the the snap is where it starts
+// 
+      //var snapDest = p1.nxt;
+      //var snapStart = p0.snap;
+      intr = {startRect:snapCStart,destRect:snapCDest,pic:snapC.element,container:$("#selectedSnap")};
       rs.push(intr);
+ 
+      var nsnapCDest = p1.snap; //  the destination of the next snap is where the current
+      var nsnapCStart = p0.prev; // the original position of the the snap is where it starts
+      var prevThumb = snapC.prevThumb;
+
+      intr = {startRect:nsnapCStart,destRect:nsnapCDest,pic:prevThumb,container:$("#selectedSnapPrev")};
+      rs.push(intr);
+           
       var cv0 = snapD.coverage;
       var cv1 = nsnapC.snapD.coverage;
       intr = {startRect:cv0,destRect:cv1,drawRect:true}
@@ -547,32 +530,38 @@
     }
   }
   
-  
-  lib.toNextSnap = function () {
+  // direction = 1 or -1
+  lib.toNextOrPrevSnap = function (direction) {
    // lib.exitShowSnapsMode();
     var snaps = lib.snaps;
     var selsnap = lib.selectedSnap;
-    $('#selectedSnapPrevLabel').css("color","black");
+    var snapD = selsnap.snapD;
+    var o = snapD.myIndex;
+    if (direction==1) {
+       if (o >= snaps.length-1) return;
+      $('#selectedSnapPrevLabel').css("color","black");
+    } else {
+      if (o == 0) return;
+      $('#selectedSnapNextLabel').css("color","black");
+    }
     //$('#selectedSnapPrev').hide();
     //selsnap.prevThumb.hide();
-    var snapD = selsnap.snapD;
-    var o = snapD.ordinal;
-    if (o >= snaps.length-1) return;
     lib.vp.setZoom(1);
     lib.setSelectedSnaps([],lib.stdSnapAdvice()); 
     
     //lib.hideSnapSelections();
-    var ints = lib.buildInterpolators(selsnap,1);
+    var ints = lib.buildInterpolators(selsnap,direction);
     // big images are hidden during animation
     selsnap.bigImg.hide();
     lib.animateSnapTransition(ints,0, function () {
-      var nsnap = snaps[o+1].snapD;
+      var nsnap = snaps[o+direction].snapD;
       lib.setSelectedSnap(undefined);
       lib.hideSelectedSnap(selsnap);
       lib.showSelectedSnap(nsnap);
-      lib.setSelectedSnap(snaps[o+1]);
+      lib.setSelectedSnap(snaps[o+direction]);
      // lib.showMainImage(nsnap);
       $('#selectedSnapPrevLabel').css("color","white");
+      $('#selectedSnapNextLabel').css("color","white");
 
     });
   }
@@ -580,25 +569,12 @@
    
   
   lib.toPrevSnap = function () {
-  //  lib.exitShowSnapsMode();
-    var snaps = lib.snaps;
-    var selsnap = lib.selectedSnap;
-    $('#selectedSnapNextLabel').css("color","black");
-
-    //$('#selectedSnapPrev').hide();
-    //selsnap.prevThumb.hide();
-    var snapD = selsnap.snapD;
-    var o = snapD.ordinal;
-    if (o == 0) return;
-    lib.vp.setZoom(1);
-    lib.setSelectedSnaps([],lib.stdSnapAdvice()); 
-    var ints = lib.buildInterpolators(selsnap,-1);
-    lib.animateSnapTransition(ints,0, function () {
-      var nsnap = snaps[o-1].snapD;
-      lib.hideSelectedSnap();
-      lib.showSelectedSnap(nsnap);
-      $('#selectedSnapNextLabel').css("color","white");
-    });
+    lib.toNextOrPrevSnap(-1);
+    return;
+  }
+   lib.toNextSnap = function () {
+    lib.toNextOrPrevSnap(1);
+    return;
   }
    
     
@@ -620,12 +596,12 @@
     if (ss.bigImageLoadStarted) return;
     ss.bigImageLoadStarted = true;
     var ssbe = ss.bigImg;
-    var imsrc = lib.snapDfullsize(snapD);
-    util.slog("STARTING LOAD OF BIG IMAGE ",tp);
+    var imsrc = snapD.fullsize();
+    //util.slog("STARTING LOAD OF BIG IMAGE ",tp);
 
     ssbe.load(function () {
  //       $('#loadingMsg').hide();
-        util.slog("LOADED BIG IMAGE ",tp);
+        //util.slog("LOADED BIG IMAGE ",tp);
         ss.bigImageLoaded = true;
 
         if (lib.selectedSnap && (ss.snapD.topic == lib.selectedSnap.snapD.topic)) {
@@ -640,6 +616,47 @@
     ssbe.attr("src",imsrc);
   }
   
+  // when a snap is added, we need to go back and fix up the formerly last snap
+  
+  
+  lib.fixNextToLastSelectedSnap = function () {
+    var ln = lib.snaps.length;
+    if (ln < 2) return;
+    var assn = lib.allSelectedSnaps;
+    if (!assn) return;
+    var lastSnapD = lib.snaps[ln-1].snapD;
+    var nextToLastSnapD = lib.snaps[ln-2].snapD;
+    var ntlSelSnap = lib.allSelectedSnaps[nextToLastSnapD.topic];
+    if (!ntlSelSnap) return;
+    if (ntlSelSnap.nextThumb) return; // already there
+    var nextThumb = lib.buildNextThumb(ln-2);
+    ntlSelSnap.nextThumb = nextThumb;
+
+    
+  }
+    
+  
+  lib.buildNextThumb = function (idx) {
+    var next = $('#selectedSnapNext');
+    var nextSnapC= lib.snaps[idx+1];
+    var nextSnapD = nextSnapC.snapD;
+    var nextThumb = $("<img class='thumb' />");
+    next.append(nextThumb);
+    var imsrc = nextSnapD.thumb();
+    nextThumb.attr("src",imsrc);
+    return nextThumb;
+  }
+  // used for snap deletion; the selectedSnap structures are rebuilt as needed
+  lib.clearSelectedSnaps = function () {
+    $('#selectedSnapPrev').empty();
+    $('#selectedSnapNext').empty();
+    $('#selectedSnap').empty();
+    lib.allSelectedSnaps = {};
+   
+  }
+  
+  lib.aTest = 33;
+  
   lib.buildSelectedSnap = function (tp,hide) {
     var sso = lib.allSelectedSnaps[tp];
     if (sso) {
@@ -648,8 +665,12 @@
       }
       return sso; // already there
     }
-    var snapD = lib.snapDsByTopic[tp];
-    var o = snapD.ordinal;
+    //var snapD = lib.snapDsByTopic[tp];
+    //var o = snapD.ordinal;
+    var snap = lib.snapsByTopic[tp];
+    var o = snap.snapD.myIndex;
+    var snapD = snap.snapD;
+    
     var snaps = lib.snaps;
     var sln = snaps.length;
     var prevThumb = null;
@@ -661,34 +682,37 @@
       var prevSnapD = prevSnapC.snapD;
       var prevThumb = $("<img draggable='false' class='thumb' />");
       prev.append(prevThumb);
-      var imsrc = lib.snapDthumb(prevSnapD);
+      var imsrc = prevSnapD.thumb();
       prevThumb.attr("src",imsrc);
       if (hide) prevThumb.hide();
     }
 
     if (o < sln-1) {
-      var nextSnapC= snaps[o+1];
+      var nextThumb = lib.buildNextThumb(o);
+     /* var nextSnapC= snaps[o+1];
       var nextSnapD = nextSnapC.snapD;
       var nextThumb = $("<img class='thumb' />");
       next.append(nextThumb);
       var imsrc = lib.snapDthumb(nextSnapD);
       nextThumb.attr("src",imsrc);
+     */
       if (hide) nextThumb.hide();
     }
 
     var sse = $('<img id="'+tp+'"/>');
-    var ssbe = $('<img id="/big/'+tp+'"/>');
+    var ssbe = $('<img id="/big'+tp+'"/>');
 
     //ss.bigImg = ssbe; //well at  least it's loading
  
     var ssic = $('#selectedSnap');
-    var snapW = lib.snapWidth(snapD);
+    var snapW = snapD.width();
     ssic.append(sse);
     ssic.append(ssbe);
     //lib.selectedSnapDiv.append(sse);
     //var imsrc = lib.snapDfullsize(snapD);
-    var imsrc = lib.snapDthumb(snapD); //zubzub
-    var sso = {element:sse,bigImg:ssbe,snapD:snapD,prevThumb:prevThumb,nextThumb:nextThumb};
+    var imsrc = snapD.thumb();
+    // don't need the snapD below, I don't think
+    var sso = {topic:tp,element:sse,bigImg:ssbe,snap:snap,snapD:snapD,prevThumb:prevThumb,nextThumb:nextThumb};
     if (hide) {
       var whenLoaded = function (imel) {
         if (lib.selectedSnap && (tp == lib.selectedSnap.snapD.topic)) {
@@ -718,18 +742,41 @@
       lib.hideSelectedSnap(csnap);
     }
    */
+    if (lib.isSnaps) {
+      if (lib.linkButton) lib.linkButton.show();
+    }
+ 
+   if (lib.hideLinks) lib.hideLinks();
    lib.hideAllSelectedSnaps(); // overkill perhaps; an intermittent bug was leaving some visible
+   if (!snapD) {
+    lib.setSelectedSnap(undefined);
+    //$('#selectedSnapPrev').hide();
+    //$('#selectedSnapNext').hide();
+    $('.selectedSnapBody').hide();
+    $('#zoomAdvice').html("No snap selected");
+    $('.selectedSnapButtons').hide();
+    return;
+   }
+  $('.selectedSnapBody').show();
+  $('#zoomAdvice').html("Click on central image to zoom to the snap");
+  lib.permissionsForSelectedSnap();
+  var xt = snapD.coverage.extent;
+  var art = xt.y/xt.x;
+    //$('#snapDetails').html(snapD.topicId);
+   if (!snapD) return;
     var snapNum = lib.pathLast(snapD.topic);
-    //window.location.hash = "snap="+snapNum; Later
+    if (idv.pageKind == "album") {
+      //document.location.hash = "snap="+snapNum; //Later is now
+    }
     $('#selectedSnapPrev').show();
     var snapCount = lib.snaps.length;
-    var isLastSnap = (snapD.ordinal + 1) ==snapCount;
+    var isLastSnap = (snapD.myIndex) ==snapCount-1;
     if (isLastSnap) {
       $('#selectedSnapNext').hide();
     } else {
       $('#selectedSnapNext').show();
     }
-    if (snapD.ordinal == 0) {
+    if (snapD.myIndex == 0) {
       $('#selectedSnapPrev').hide();
     } else {
       $('#selectedSnapPrev').show();
@@ -748,23 +795,30 @@
     }
     var wtdst = $('#selectedSnapCaption');
     wtdst.empty();
-    lib.processWikiText( wtdst,caption);
-    //$('#selectedSnapCaption').html(caption);
+    wtdst.html(util.processMarkdown(caption));
+      //util.creole.parse(wtdst[0],caption);
+      //util.activateAnchors(wtdst);
     var ssd = $('#selectedSnapDescription');
     if (description) {
       ssd.show();
+     
+       wtdst = $('#selectedSnapDescription');
+       wtdst.empty();
+      wtdst.html(util.processMarkdown(description));
+     
+       // util.creole.parse(wtdst[0],description);
+       // util.activateAnchors(wtdst);
       if (description.length < 50) {
-       ssd.css("text-align","center");
+        $('p',ssd).css("text-align","center");
       } else {
-       ssd.css("text-align","left");
+       $('p',ssd).css("text-align","left");
       }
     } else {
       ssd.hide();
       
     }
-    wtdst = $('#selectedSnapDescription');
-    wtdst.empty();
-    lib.processWikiText( wtdst,description);
+   
+   /* http://en.wikipedia.org/wiki/ */
 
     //$('#selectedSnapDescription').html(description);
     lib.selectPanel("selectedSnap",null,true); // true : dont call initializer
@@ -791,46 +845,43 @@
 
   lib.selectedSnapDiv =  $(
     '<div class="selectedSnap">'+
-      '<div id="yesSnaps">'+
-      '<div class="selectedSnapControls" >'+
-        //'<input id="hideSelectedSnap" type="button" value="Back to Snaps"/>'+
-        '<div id="zoomAdvice"><i>Click on central image to zoom to the snap</i></div>' +
-     //   '<span id="zoomToSnap" class="clickableElement">Zoom To</span>'+
-        //'<input id="zoomToSnap" type="button" value="Zoom To"/>' +
-        '<span id="editSnap" class="clickableElement">Edit</span>'+
-        '<span id="deleteSnap" class="clickableElement">Delete</span>'+
+      '<div class="selectedSnapHead">' +
+        '<div id="yesSnaps"></div>'+
+        '<div class="selectedSnapControls" >'+
+          '<div id="zoomAdvice"><i>Click on central image to zoom to the snap</i></div>' +
+          '<div class="selectedSnapButtons">'+
+            '<span id="editSnap" class="clickableElement">Edit This Snap</span>'+
+            '<span id="deleteSnap" class="clickableElement">Delete This Snap</span>'+
+          '</div>'+
+        '</div>' +
       '</div>'+
-      '<div id="selectedSnapCaption"/>'+
-      '<div class="selectedSnapImages">'+
-        '<div id="selectedSnapPrev">'+
-          '<div  id="selectedSnapPrevLabel" class="prevNextLabel">PREV</div>'+
-          '<div id="prevSnapImageContainer" class="imageContainer"/>'+
+      '<div class="selectedSnapBody">' +
+        '<div id="selectedSnapCaption"/>'+
+        '<div class="selectedSnapImages">'+
+          '<div id="selectedSnapPrev">'+
+            '<div  id="selectedSnapPrevLabel" class="prevNextLabel">PREV</div>'+
+            '<div id="prevSnapImageContainer" class="imageContainer"/>'+
+          '</div>'+
+          '<div id="selectedSnap">'+
+             '<div id="loadingMsg"> loading ... <img src="/ajax-loader.gif"/></div>' +
+          '</div>'+
+          '<div id="selectedSnapNext">'+
+            '<div  id="selectedSnapNextLabel" class="prevNextLabel">NEXT</div>'+
+            '<div id="nextSnapImageContainer" class="imageContainer"/>'+
+          '</div>'+
+          '<div id="selectedSnapIncoming"/>'+
+          '<div id="selectedSnapOutgoing"/>'+
         '</div>'+
-        '<div id="selectedSnap">'+
-           '<div id="loadingMsg"> loading ... <img src="/ajax-loader.gif"/></div>' +
-      //    '<div id="selectedSnapImageContainer" class="imageContainer"/>'+
-        '</div>'+
-        '<div id="selectedSnapNext">'+
-          '<div  id="selectedSnapNextLabel" class="prevNextLabel">NEXT</div>'+
-          '<div id="nextSnapImageContainer" class="imageContainer"/>'+
-        '</div>'+
-        '<div id="selectedSnapIncoming"/>'+
-        '<div id="selectedSnapOutgoing"/>'+
-       
-      '</div>'+
-      '<div id="selectedSnapDescription"/>' +
+        '<div id="selectedSnapDescription"/>' +
       '</div>' +
-    '</div>');
-  
+    '</div>'); 
   
     
     lib.permissionsForSelectedSnap = function () {
-      if (lib.myAlbum) {
-        $('#deleteSnap').show();
-        $('#editSnap').show();
+      if (lib.editPermissions()) {
+        $('.selectedSnapButtons').show();
       } else {
-        $('#deleteSnap').hide();
-        $('#editSnap').hide();
+        $('.selectedSnapButtons').hide();
       }
     }
     
@@ -844,10 +895,13 @@
     
     lib.selectedSnapDiv.data("initializer",function () {
       lib.permissionsForSelectedSnap();
-
+      if (idv.pageKind != "album") {
+        $('#selectedSnapPrevLabel').hide();
+        $('#selectedSnapNextLabel').hide();
+      }
       if (lib.snaps.length == 0) {
         $('#noSnaps').show();
-        lib.setPanelDivHeight(lib.defaultPanelHeight);
+       // lib.setPanelDivHeight(lib.defaultPanelHeight); NOT SURE WHAT THIS WAS FOR; did the w
         $('#yesSnaps').hide();
         return;
       } else {
@@ -870,6 +924,8 @@
 
   lib.addSelectedSnapDiv = function (container) {
     container.append(lib.selectedSnapDiv);
+    $("#selectedSnapNext").css({"cursor":"pointer"});
+    $("#selectedSnapPrev").css({"cursor":"pointer"});
     lib.setPanelPanel("selectedSnap",lib.selectedSnapDiv);
     $('#selectedSnapPrev').click(lib.toPrevSnap);
     $('#selectedSnapPrev').mousedown(function (event){event.preventDefault();});
@@ -879,7 +935,14 @@
     $('#editSnap').click(lib.editSnap);
     lib.setClickMethod($('#zoomToSnap'),lib.zoomToSelectedSnap);
     $('#selectedSnap').click(lib.zoomToSelectedSnap);
-    $('#deleteSnap').click(function (){lib.selectPanel("deleteSnap");});
+    $('#deleteSnap').click(function () {
+      util.myConfirm("Delete","Are you sure you wish to delete this snap? There is no undo.",
+                     function () {util.closeDialog();lib.serverDeleteSnap();},
+                     function () {util.closeDialog();});
+    });
+    //$('#newSnap').click(function () {lib.selectPanel("createSnap");});
+                           
+                        //   function (){lib.selectPanel("deleteSnap");});
     lib.selectedSnapDiv.css({width:"100%"});//,height:"100%"});
     $('#loadingMsg').hide();
 

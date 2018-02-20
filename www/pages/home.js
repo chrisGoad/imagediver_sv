@@ -14,6 +14,8 @@ var page = {};
   
   
   var lib = page;
+  var geom = idv.geom;
+
   var geom = exports.GEOM2D;
   var com = idv.common;
   var util  = idv.util;
@@ -134,7 +136,7 @@ var page = {};
     titleDiv.append(logo);
     var cnt = $('<div class="homeContainer"/>');
     b.append(cnt);
-    var slogan  = $('<div class="slogan">explore the depths of high resolution images</div>');
+    var slogan  = $('<div class="slogan">the depths of high resolution images, annotated</div>');
     cnt.append(slogan);
 
 

@@ -6,21 +6,29 @@
 (function () {
   
   var lib = page;
-  var geom = exports.GEOM2D;
-  var imlib = exports.IMAGE;
+  var geom = idv.geom;
+  var imlib = idv.image;
+
   var com = idv.common;
   var util  = idv.util;
   page.wideLayout = false; // the wide layout is for wide images
   idv.pageKind == "image";
 
   
+  lib.licenseText = {
+    "PD-old":'<a href="http://en.wikipedia.org/wiki/Public_domain">Public Domain</a> in the United States, and those countries with a copyright term of life of the author plus 100 years or less',
+    "PD-author":'Released into the <a href="http://en.wikipedia.org/wiki/Public_domain">Public Domain</a> by the author',
+    "PD-self":'Released into the <a href="http://en.wikipedia.org/wiki/Public_domain">Public Domain</a> by the author',
+   "cc-by-sa-3.0":'Creative Commons Attribution-ShareAlike 3.0',
+   "cc-by-3.0":'<a href="http://creativecommons.org/licenses/by/3.0/">Creative Commons Attribution 3.0</a>'}
    
+  
   lib.renderControls = function (container) {
     var cnt = container;
     var elements = {};
     var albums = lib.albumDs;
     var ln = albums.length;
-    if ((ln > 0)||loggedInUser) {
+    if ((ln > 0)||idv.loggedInUser) {
       lib.someAlbums = true;
       /*
       var aboutImageActivator = $('<span style="float:right" class="clickableElement">about image</span>');
@@ -33,19 +41,33 @@
       var albumsActivator = $('<span style="float:right" class="clickableElement">albums</span>');
       cnt.append(albumsActivator);
       */
-      lib.setPanelPanel("albums",lib.albumDiv);
+      lib.setPanelPanel("albums",lib.albumsDiv);
       //lib.setPanelActivator("albums",albumsActivator);
       
     } else {
       lib.someAlbums = false;
     }
-  
-   if (loggedInUser) {
-      var editImageActivator = $('<span style="float:right" class="clickableElement">Edit</span>');
+  /*
+   if (loggedInUser  && (lib.imD.owner==loggedInUser)) {
+      var editImageActivator = $('<span style="float:right" class="clickableElement">Edit Image Properties</span>');
+      editImageActivator.click(function () {
+        lib.popEditImageLightbox();
+      });
+      cnt.append(editImageActivator);
+   }
+  */
+   if (idv.loggedInUser) {
+     var createAlbumActivator = $('<span style="float:right" class="clickableElement">Create New Album</span>');
+      createAlbumActivator.click(function () {
+        lib.popCreateAlbumLightbox();
+      });
+      cnt.append(createAlbumActivator);
+      /*
       pn = lib.setPanelActivator("editImage",editImageActivator);
       pn.scalable = false;
       pn.height = null;
       cnt.append(editImageActivator);
+      */
     }
     //if (loggedInUser) {
     //  put a create album button in here
@@ -100,7 +122,7 @@
   // A view
   
   
-  imlib.clickCallback = function (ps,vps,dclick) {
+  /*imlib.clickCallback = function (ps,vps,dclick) {
     //lib.vpCapDiv.css({left:vps.x,top:vps.y});
     //if (!lib.showSnapsMode) return;
     //console.slog("CLICK CALL BACK",ps);
@@ -113,7 +135,7 @@
       lib.animatedZoomToSnap(csel,1.1);
     }
   }
-  
+  */
 
   lib.setParams = function(imD) {
     var imTopic = imD.topic
@@ -128,7 +150,7 @@
     var y = dim.y;
     var aar = x/y;
     lib.imageAspectRatio = aar;
-    if (aar > 1.5) {
+    if (true || aar > 1.5) {
      lib.aspectRatio = 2; // this is the aspect ratio of the panels
      lib.twoColumns = false;
     } else {
@@ -204,10 +226,24 @@
   }
   
   
+  lib.computeAboutText = function () {
+    var imD = lib.imD;
+    var imd = ""
+    if (imD.title) {
+      imd += "{{{"+imD.title+"}}}"; // nowiki
+    }
+    if (imD.author) {
+      imd += " by " + imD.author
+    }
+    imd += "\n\n"
+    var ds = imD.description;
+    if (ds) {
+      imd += ds
+    }
+    return imd;
+  }
   
-  
-  lib.genDivs = function () {
-    var b = $('body');
+  lib.updateTopbarOptions = function (options) {
     var imD = lib.imD;
     var author = imD.author;
     if (author) {
@@ -220,11 +256,208 @@
     } else {
       title = imD.name;
     }
+    options.title = util.sanitize(title + author);
+    /*
+    options.aboutText = lib.computeAboutText();
+    var dp = [];
     var wpg = imD.wikipediaPage;
-    var topbarOptions = {embed:idv.embed,title:title+author,aboutText:imD.description,aboutTitle:"about image",includeGallery:1};
     if (wpg) {
-      topbarOptions.wikipediaPage = wpg;
+      dp.push({title:"wikipedia",url:wpg});
     }
+    options.detailPages = dp;
+   */
+  }
+  
+   lib.imageDetailsWd  = 200;
+   lib.imageDetailsDiv =
+    $('<div class="imageDetailsDiv">' +
+        '<div id="title"></div>' +
+        '<div id="description"></div>' +
+       '<table id="imageFields">' +
+            '<tr id="authorRow"><td  class="rowTitle">Artist/Photographer:</td><td class="rowValue"><span style="width:'+lib.imageDetailsWd+'px" id="author"/></td></tr>' + 
+            '<tr  id="yearRow"><td  class="rowTitle">Year:</td><td class="rowValue"><span style="width:'+lib.imageDetailsWd+'px" id="year"/></td></tr>' + 
+            '<tr id="externalLinkRow" ><td class="rowTitle">External Link:</td><td class="rowValue"><span style="width:'+lib.imageDetailsWd+'px" id="externalLink"/></td></tr>' + 
+            '<tr id="contributorRow" ><td class="rowTitle">Contributed by:</td><td class="rowValue"><span style="width:'+lib.imageDetailsWd+'px" id="contributor"/></td></tr>' +
+            '<tr class="dimensionRow"><td class="rowTitle">Dimensions:</td><td class="rowValue"><span style="width:'+lib.imageDetailsWd+'px" id="dimensions"/></td></tr>' +
+            '<tr class="publicRow"><td id="isPublic" class="rowTitle">Public</td></tr>' +
+       '<tr id="licenseRow" ><td class="rowTitle">License:</td><td class="rowValue"><span style="width:'+lib.imageDetailsWd+'px" id="license"/></td></tr>' +
+             '</table>'+
+          '<div id="buttons"><span id="editButton" class="clickableElement">Edit Image Properties</span><span id="deleteButton" class="clickableElement">Delete the Image</span><span style="margin-left:20px" id="buttonMsg">Not deleteable (public, in use)</span></div>' +
+
+        '</div>');
+    
+    
+    
+    
+    
+  lib.deleteTheImage = function () {
+     var data = {topic:lib.imD.topic};
+    var url = "/api/deleteImage";
+    util.post(url,data,function (rs) {
+        if (rs.status != "ok") {
+          util.logout();
+          location.href = "/timeout";
+          return;
+        }
+        location.href = "/mywork"
+       },"json");
+    util.log("api","uuuuu");
+  }
+  
+  lib.popImageDetails = function () {
+    lib.lightbox.pop();
+    lib.lightbox.element.empty();
+    lib.lightbox.addClose();
+    function adjustLightBoxHeight() {
+        var ht = lib.imageDetailsDiv.height();
+        var lbh = lib.lightbox.element.height();
+        lib.lightbox.element.css({"height":(ht + 40)+"px"});
+    }
+    
+    lib.imageDeleteable = function () {
+  // check for divergent ownership
+      var aln = lib.allAlbumDs.length;
+      if (aln == 0) return true;
+      var imowner = lib.imD.owner;
+      for (var i=0;i<aln;i++) {
+        var calb = lib.allAlbumDs[i];
+        if (calb.owner != imowner) {
+         return false;
+        }
+      }
+      return true;
+    }
+    
+    
+    lib.lightbox.element.append(lib.imageDetailsDiv);
+    if ($.trim(lib.imD.description)) {
+      var dst = $("#description",lib.imageDetailsDiv);
+      dst.empty();
+      dst.css({"word-wrap":"break-word"});
+      util.creole.parse(dst[0],lib.imD.description);
+    } else {
+      $("#descriptionRow",lib.imageDetailsDiv).hide();
+    }
+    $("#title",lib.imageDetailsDiv).css({"font-weight":"bold","margin-left":"10px","margin-right":"10px","margin-top":"10px","text-align":"center"});
+    $("#imageFields",lib.imageDetailsDiv).css({"margin-left":"10px","margin-right":"10px","margin-top":"10px"});
+    $(".rowTitle",lib.imageDetailsDiv).css({"padding-left":"10px","padding-right":"20px"});
+    $("tr",lib.imageDetailsDiv).css({"padding-top":"10px"});
+    $("#buttons",lib.imageDetailsDiv).css({"margin":"30px"});
+
+    //$("#titleTitle",lib.imageDetailsDiv).css({"margin-right":"10px"});
+    var ttl = $.trim(lib.imD.title);
+    if (!ttl) {
+      ttl = "Untitled"
+    }
+   
+    $("#titleRow",lib.imageDetailsDiv).show();
+    $("#title",lib.imageDetailsDiv).html(util.sanitize(ttl));
+    var ownm = lib.imD.ownerName;
+    var cdiv = $("#contributor",lib.imageDetailsDiv);
+    if (ownm) {
+      cdiv.show()
+      cdiv.html(util.sanitize(lib.imD.ownerName));
+    } else {
+      $('#contributorRow').hide();
+    }
+   /*
+    Detail-Head-Saint Francis in Ecstasy - Bellini.jpg
+    
+    
+    http://en.wikipedia.org/wiki/Wikipedia:Upload?wpDestFile=Detail_-_Head_-_Saint_Francis_in_Ecstasy_-_Bellini.jpg
+   */
+    
+    if ($.trim(lib.imD.author)) {
+      $("#authorRow",lib.imageDetailsDiv).show();
+      //var dst = $("#author",lib.imageDetailsDiv)
+      //util.creole.parse($("#author",lib.imageDetailsDiv)[0],lib.imD.author);
+      $("#author",lib.imageDetailsDiv).html(util.sanitize(lib.imD.author));
+    } else {
+      $("#authorRow",lib.imageDetailsDiv).hide();
+    }
+
+    if ($.trim(lib.imD.year)) {
+      $("#yearRow",lib.imageDetailsDiv).show();
+      $("#year",lib.imageDetailsDiv).html(util.sanitize(lib.imD.year));
+    } else {
+      $("#yearRow",lib.imageDetailsDiv).hide();
+    }
+
+    var lnk = $.trim(lib.imD.externalLink);
+    if (lnk) {
+      $("#externalLinkRow",lib.imageDetailsDiv).show();
+      var edv = $("#externalLink",lib.imageDetailsDiv);
+      var a = $('<a>');
+      var sanlnk = util.sanitize(lnk);
+      a.attr("href",lnk);
+      a.attr("target","imagediverTarget");
+      edv.empty();
+      edv.append(a);
+      a.html(sanlnk);
+    } else {
+      $("#externalLinkRow",lib.imageDetailsDiv).hide();
+    }
+    
+    var dim = lib.imD.dimensions;
+    var dims = dim.x + " pixels wide by "+ dim.y+ " pixels high";
+    $('#dimensions',lib.imageDetailsDiv).html(dims);
+    if (lib.imD.isPublic) {
+      var pubtxt = "Public";
+    } else {
+      pubtxt = "Private";
+    }
+    $('#isPublic',lib.imageDetailsDiv).html(pubtxt);
+    var lic = lib.imD.license;
+    if ((!lic) || (lic == "none")) {
+      $('#licenseRow').hide();
+    } else {
+      $('#license').html(lib.licenseText[lic]);
+    }
+    
+    if (idv.loggedInUser  && (lib.imD.owner==idv.loggedInUser)) {
+      $("#buttons",lib.albumDetailsDiv).show();
+      $("#editButton",lib.imageDetailsDiv).click(function () {lib.popEditImageLightbox();});
+      if (lib.imageDeleteable()) {
+        $("#buttonMsg").hide();
+
+        $("#deleteButton",lib.imageDetailsDiv).click(function () {
+          
+          lib.lightbox.tempDismiss();
+          var aln = lib.allAlbumDs.length;
+          if (aln > 1) {
+           
+            var msg = "Are you sure you wish to delete this image, and all of its "+aln+" albums?"
+          } else if (aln == 1) {
+            var msg = "Are you sure you wish to delete this image, and its album?"
+          } else {
+            msg = "Are you sure you wish to delete this image?"
+          }
+          util.myConfirm("Delete Image",msg,
+                     function () {lib.deleteTheImage();},
+                     function () {util.closeDialog();lib.lightbox.bringBack();});  //snapAdvice.hide();
+        });
+      } else {
+        $("#deleteButton").hide();
+        $("#buttonMsg").show();
+      }
+     } else {
+      
+    
+       $("#buttons",lib.albumDetailsDiv).hide();
+    }
+
+    //adjustLightBoxHeight() 
+  
+ }
+  
+  
+  lib.genDivs = function () {
+    var b = $('body');
+    var imD = lib.imD;
+   
+    var topbarOptions = {embed:idv.embed,detailsLink:{text:"image details",action:lib.popImageDetails},includeGallery:1};
+    lib.updateTopbarOptions(topbarOptions);
+    
     
     var twoC = page.twoColumns;
     if (lib.image_only) twoC=false;
@@ -232,7 +465,7 @@
     //twoC = false;
     if (twoC) {
       var outerDiv = $("<div class='outerDiv'/>");
-      if (!idv.embed) lib.topbar = imlib.genTopbar(outerDiv,topbarOptions);
+      if (!idv.embed) lib.topbar = idv.topbar.genTopbar(outerDiv,topbarOptions);
 
       //lib.titleDiv = imlib.genTitleBar(outerDiv,title,true,true);
       lib.outerDiv = outerDiv;
@@ -324,12 +557,10 @@
 
       });
     }
-    if ((!lib.image_only) || (lib.albumDs.length > 0) || loggedInUser) {
-      lib.addAlbumDiv(lib.panelDiv);
-    }
-   // lib.addAboutImageDiv(lib.panelDiv);
-    if (loggedInUser) {
-      lib.addEditImageDiv(lib.panelDiv);
+    lib.addAlbumsDiv(lib.panelDiv)
+    if (idv.loggedInUser) {
+      //lib.addAlbumsDiv(lib.panelDiv);
+       lib.addEditImageDiv(lib.panelDiv);
     }
     lib.theLayout.placeDivs();
     if (lib.topbar) {
@@ -339,7 +570,10 @@
     var vpExtent = lib.theLayout.vpExtent;
     lib.vpCanvas = imlib.genCanvas({whichCanvas:"vp",extent:vpExtent,container:lib.vpDiv,zIndex:100,backgroundColor:"#000000"});
     lib.ovCanvas = imlib.genCanvas({whichCanvas:"ov",extent:vpExtent,container:lib.vpDiv,zIndex:200,backgroundColor:"transparent"}); // overlay canvas
-
+    if (!idv.useFlash) {
+      lib.selCanvas = imlib.genCanvas({whichCanvas:"sel",extent:vpExtent,container:lib.vpDiv,zIndex:300,backgroundColor:                         "transparent"}); // overlay canvas
+      lib.hiliCanvas = imlib.genCanvas({whichCanvas:"hili",extent:vpExtent,container:lib.vpDiv,zIndex:400,                                        backgroundColor:"transparent"}); // overlay canvas
+   }
 
     
 
@@ -354,7 +588,10 @@
         lib.vpCanvas.attr({width:layout.vpExtent.x,height:layout.vpExtent.y})  
         //lib.setCss(lib.vpCanvas,vpCss);
         //lib.setCss(lib.ovCanvas,vpCss);
-        if (lib.ovCanvas) lib.ovCanvas.attr({width:layout.vpExtent.x,height:layout.vpExtent.y})
+        if (lib.ovCanvas) lib.ovCanvas.attr({width:layout.vpExtent.x,height:layout.vpExtent.y});
+        if (lib.selCanvas) lib.selCanvas.attr({width:layout.vpExtent.x,height:layout.vpExtent.y});
+        if (lib.hiliCanvas) lib.hiliCanvas.attr({width:layout.vpExtent.x,height:layout.vpExtent.y});
+       
         lib.vp.refresh();
 
       }
@@ -367,7 +604,7 @@
   lib.genViewports = function () {
     lib.tiling.createTiles();
     var vpExtent = lib.theLayout.vpExtent;
-    var vp = new imlib.Viewport(lib.vpCanvas,lib.tiling,vpExtent,lib.ovCanvas);
+    var vp = new imlib.Viewport(lib.vpDiv,lib.vpCanvas,lib.tiling,vpExtent,[lib.ovCanvas,lib.selCanvas,lib.hiliCanvas]);
     lib.vp = vp;
 //    vp.depthBias = lib.depthBias;
     vp.zoom = lib.initialZoom;
@@ -378,6 +615,7 @@
     vp.maxZoom = lib.maxZoom;
     vp.maxDepth = lib.maxDepth;
     vp.depthBump = lib.imD.zoomDepthBump;
+    vp.depthBump = 1;
     lib.renderControls(lib.controlDiv);
     //vp.depthBump = 3.5;
     lib.panControl = new imlib.PanControl(lib.vpDiv,vp);
@@ -491,7 +729,7 @@
         /*
         if (!lib.cpan) lib.cpan = 0.01;
         lib.cpan = lib.cpan + 1;
-        setTimeout(function () {util.slog("HEREEPO");lib.vp.setPan(new geom.Point(lib.cpan,0.1));},1000);
+        //setTimeout(function () {util.slog("HEREEPO");lib.vp.setPan(new geom.Point(lib.cpan,0.1));},1000);
         */
         if (lib.firstMessage) { // need some time to resize etc
           setTimeout(function () {
@@ -543,7 +781,9 @@
   
   
   lib.finishInitialize = function () {
+    
     if (lib.snapDs) {
+      lib.error("UNEXPECTED");
       lib.snapsByIndex = {};
       var imx = lib.imD.dimensions.x;
       util.arrayForEach(lib.snapDs, function (snapD) {
@@ -558,6 +798,7 @@
     }
     lib.genDivs();
     lib.genViewports();
+    util.addDialogDiv($('.columns'));
    /* if (lib.selectedRect) {
       var ov = new imlib.Overlay("test",lib.selectedRect);
       lib.vp.addOverlay(ov);
@@ -574,54 +815,53 @@
     $(window).resize(function() {
       util.log("resize",$(window).width());
       lib.placeDivs();
+      lib.vp.refresh(true);
+
     });
     lib.placeDivs();
     lib.hookupPanelActivators();
     if (!lib.image_only) {
       if (lib.someAlbums) {
         lib.selectPanel("albums")
-      } else {
-        lib.selectPanel("aboutImage");
       }
+      //else {
+      //  lib.selectPanel("aboutImage");
+      //}
     }
     lib.postMessageToParent("ready");
   }
    
   
-  lib.initialize = function (imD,albumDs,loggedInUser) {
+  lib.initialize = function (options) { //imD,albumDs,loggedInUser) {
     //alert("imagge");
     //window.pageshow= function () {alert("pageshow");}
     //$("document").ready(function () { alert("ready");});
+    idv.pageKind = "image";
+    // cut down albums to those that either owned by the current user or public
+    var albumDs = options.albums;
+    var imD = options.imageD;
+    var falbumDs = util.arrayFilter(albumDs,
+                                    function (ad) {
+                                      return ad.published;
+                                    });
+    lib.allAlbumDs = albumDs;
+    albumDs = falbumDs;
     
-    // VILE HACK until I get an album deletion thing going
     util.commonInit();
+    var ownern = util.lastPathElement(imD.owner)
+    lib.albumString = ownern+".0"; // for logging
     imlib.selectStrokeWidth = 20;
     var qs = util.parseQS();
     lib.image_only = qs["image_only"];
     lib.album = qs["album"];
     lib.imD = imD;
-    util.slog(lib.album);
+    //util.slog(lib.album);
     if (lib.image_only) {
       lib.addListener();
     }
-    /*
-    var sel = qs["selected"];
-    if (sel) {
-      var sels = sel.split(",");
-      var crn = new geom.Point(parseFloat(sels[0]),parseFloat(sels[1]));
-      var extent = new geom.Point(parseFloat(sels[2]),parseFloat(sels[3]));
-      var selr = new geom.Rect(crn,extent);
-      lib.selectedRect = selr;
-    }
-    
-    lib.selsnap = qs["snap"];
-    */
-    if (imD.name == "vintage_1") {
-      albumDs = [];
-      imD.albumDs = [];
-    }
     lib.setParams(imD);
     lib.albumDs = albumDs;
+    var loggedInUser = options.loggedInUser;
     idv.loggedInUser = loggedInUser;
     if (lib.album) {
       var jsonUrl = idv.util.jsonUrl(lib.album);

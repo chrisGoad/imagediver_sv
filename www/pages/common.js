@@ -14,12 +14,23 @@ idv.css.lightbox = {
    "color":"white"
 };
 
+idv.css.lightbox = {
+  border:"white solid",
+   position:"absolute",
+   "z-index":2000,
+   "background-color":"#999999",
+   "color":"black"
+   
+};
 
-abcd = 22;
+
+idv.SnapD = function () {};
+idv.Snap = function () {};
 
 
-(function (title) {
+(function () {
   var lib = idv.common;
+  var util = idv.util;
   
   lib.genLogo = function () {
     var rs = $('<span class="logoSpan"/>');
@@ -43,11 +54,11 @@ abcd = 22;
   }
                
   
-  lib.genTable = function (rows) {
+  lib.genTable = function (nm,rows) {
     var st = '<table>';
     var ln = rows.length;
     for (var i=0;i<ln;i++) {
-      st += '<tr>';
+      st += '<tr id="'+nm+'_row_'+i+'">';
       var cr = rows[i];
       var rln = cr.length;
       for (var j=0;j<rln;j++) {
@@ -57,7 +68,7 @@ abcd = 22;
       st += '</tr>';
     }
     st += '</table>';
-    return $(st);
+    return st;
   }
   
   
@@ -99,6 +110,7 @@ abcd = 22;
   lib.Lightbox.prototype.dismiss = function () {
    // this.element.hide();
     var el = this.element;
+    el.empty();
     var fr = this.iframe;
     if (fr) fr.attr("width","1px");
     //move it out of the way; hiding has a problem in ff, where a swf embedded in the lightbox fails to refresh properly on reshowing
@@ -112,11 +124,32 @@ abcd = 22;
     this.loading.hide();
   }
   
-  
-  lib.Lightbox.prototype.pop = function (dontShow) {
+   lib.Lightbox.prototype.tempDismiss = function () {
+      var w = $(window);
+      var bht = w.height();
+      var stop = w.scrollTop();
+      var ht = this.element.height();
+      this.dims.height = ht + "px";
+      this.element.css({left:"0px",top:(stop+bht+40)+"px",height:"1px",width:"1px"});
+      this.shade.hide();
+      this.close.hide();
+      this.loading.hide();
+   }
+   
+   
+   lib.Lightbox.prototype.bringBack= function () {
+      this.element.css(this.dims);
+      this.shade.show();
+      this.close.show();
+
+   }
+   
+  lib.Lightbox.prototype.pop = function (dontShow,iht) {
     this.setElementProperties();
     var wd = $(document).width();
+    //var wd = this.container.width();
     var ht = $(document).height();
+    //var ht = this.container.height;
     var w = $(window);
     var stop = w.scrollTop();
     var bht = w.height();
@@ -124,10 +157,14 @@ abcd = 22;
     var lwd = this.width;
     /* center the fellow */
     var lft = Math.max((bwd - lwd)/2,50);
-    
-    var eht = Math.max(bht - (this.top) - 50,50);
+    if (iht) {
+      var eht = iht;
+    } else {
+      eht = Math.max(bht - (this.top) - 50,50);
+    }
     //console.log("wd "+wd+" ht "+ht+" stop "+stop+"  bht "+bht+" bwd "+bwd+" lwd "+lwd+" lft "+lft);
-    this.element.css({width:lwd+"px",height:(eht+"px"),top:(stop+35)+"px",left:(lft+"px")});
+    this.dims = {width:lwd+"px",height:(eht+"px"),top:(stop+35)+"px",left:(lft+"px")}
+    this.element.css(this.dims);
     this.loading.css({top:stop+10});
     if (dontShow) this.loading.hide();
     //this.element.show();
@@ -152,7 +189,19 @@ abcd = 22;
       this.addClose(e);
       var cn = $('<div class="lightboxContent"/>');
       e.append(cn);
+      
       cn.html(html);
+  }
+  
+  
+  lib.Lightbox.prototype.setWikitext  = function (wtxt) {
+      var e = this.element;
+      e.empty();
+      this.addClose(e);
+      var cn = $('<div class="lightboxContent"/>');
+      e.html(util.processMarkdown(wtxt));
+
+      //util.creole.parse(e[0],wtxt);
   }
 
   
@@ -180,15 +229,22 @@ abcd = 22;
       this.afterCloseCallback();
     }
   }
-  lib.Lightbox.prototype.addClose = function () {
+  
+  lib.closeX  = '<div class="closeX" style="padding:3px;cursor:pointer;background-color:red;font-weight:bold;border:thin solid white;font-size:12pt;color:white;float:right">X</div>';
+   lib.smallCloseX  = '<div class="closeX" style="position:relative;top:-10px;left:7px;padding:2px;cursor:pointer;background-color:red;font-weight:bold;border:thin solid white;font-size:10pt;color:white;float:right">X</div>';
+ 
+  
+  lib.Lightbox.prototype.addClose = function (whenClosed) {
     var thisHere = this;
-    this.close = $('<div style="padding:3px;cursor:pointer;background-color:red;font-weight:bold;border:thin solid white;font-size:12pt;color:white;float:right">X</div>');
-    this.close.click(function () {thisHere.dismiss();thisHere.afterClose();});
+    this.close = $(lib.closeX);
+    //$('<div style="padding:3px;cursor:pointer;background-color:red;font-weight:bold;border:thin solid white;font-size:12pt;color:white;float:right">X</div>');
+    this.close.click(function () {
+      thisHere.dismiss();thisHere.afterClose();if (whenClosed) whenClosed();});
     //this.close.click(function () {thisHere.element.empty();thisHere.dismiss();thisHere.afterClose();});
     this.element.append(this.close);
   }
 
-  lib.Lightbox.prototype.render = function () {
+  lib.Lightbox.prototype.render = function (dontDismiss) {
     var thisHere = this;
     var loading = $('<div class="loading">Loading...</div>');
     this.loading = loading;
@@ -196,8 +252,15 @@ abcd = 22;
     loading.hide();
     var element = $('<div class="lightbox"/>');
     element.css(idv.css.lightbox); // needed in album_pages where no css is available
-    var wd = $(document).width();
-    var ht = $(document).height();
+    //var wd = $(document).width();
+    //var ht = $(document).height();
+    var wd =this.container.width();
+    if (this.window) {
+      var ht = this.window.height();
+    } else {
+      var ht = $('window').height();
+    }
+       
     var shades = '<div style="position:absolute;top:0px;left:0px;width:'+wd+'px;height:'+ht+'px;z-index:1500;opacity:0.8;background-color:black;"/>';
 
     var shade = $(shades);
@@ -208,11 +271,29 @@ abcd = 22;
     this.container.append(shade);
     this.addClose();
     
-     this.dismiss();  
+    if (!dontDismiss) this.dismiss();  
     
   }
   
   
+  
+  // msg might be a string or an element
+  
+  lib.Lightbox.prototype.popMessage = function (msg,centerIt) {
+    this.pop();
+    this.element.empty();
+    this.addClose();
+    if (typeof(msg) == 'string') {
+      var msgdiv = $('<div/>');
+      msgdiv.css({"margin":"20px"});
+      if (centerIt)  msgdiv.css({'text-align':'center'});
+      msgdiv.html(msg);
+    } else {
+      msgdiv = msg;
+    }
+    this.element.append(msgdiv);
+   
+  }
   
  
  
@@ -231,6 +312,14 @@ abcd = 22;
       ocanvas.attr("height",rect.extent.y);
     }
   }
+  
+  
+  
+  
+  
+  
+  
+  
   
   
 
