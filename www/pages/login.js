@@ -253,7 +253,7 @@ lib.initialize = function (options) {
                             
   }
   
-  cn.append($('<div/>').css({"margin-left":"10px"}).append('If you have a Tumblr or Twitter account, there is no need to register separately with ImageDiver.'));
+  cn.append($('<div/>').css({"margin-left":"10px"}).append('If you have a Tumblr or Twitterr account, there is no need to register separately with ImageDiver.'));
   cn.append($('<div/>').css({"margin-left":"20px","margin-top":"10px"}).append(sit=$('<span id="signIn" class="clickableElement">sign in with Tumblr</span>').css({'background-color':'#2C4762'})));
   cn.append(
     $('<div>The only access that ImageDiver will perform to your Tumblr account: retrieving your Tumblr name, and posting ImageDiver content as drafts when you request this.</div>').

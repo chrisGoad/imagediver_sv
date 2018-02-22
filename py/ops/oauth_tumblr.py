@@ -14,6 +14,7 @@ import urllib
 
 verbose = False
 
+
 def vprint(*args):
   if verbose:
     misc.printargs(args,"OAUTH TUMBLR")
@@ -25,9 +26,9 @@ consumer_key = 'YULMTQMzxKkm0XCeIZVhnALysmoLZbAHhI7IcYjBuymb9dEmvZ'
 consumer_secret  = 'u8eEieUmuFEzKnUc1wLEbNpwUHAgm1XcTzBpbzuKCaEtQwXw7m'
 
 
-request_token_url = 'http://www.tumblr.com/oauth/request_token'
-access_token_url = 'http://www.tumblr.com/oauth/access_token'
-authorize_url = 'http://www.tumblr.com/oauth/authorize'
+request_token_url = 'https://www.tumblr.com/oauth/request_token'
+access_token_url = 'https://www.tumblr.com/oauth/access_token'
+authorize_url = 'https://www.tumblr.com/oauth/authorize'
 
 
 def requestToken():
